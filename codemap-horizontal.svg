@@ -1,0 +1,11 @@
+<svg viewBox="0 0 180 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0, 0)">
+    <path d="M16 8C16 8 12 8 12 12V18C12 20 10 20 8 20C10 20 12 20 12 22V28C12 32 16 32 16 32" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M28 8C28 8 32 8 32 12V18C32 20 34 20 36 20C34 20 32 20 32 22V28C32 32 28 32 28 32" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M22 36L22 30M22 30L22 24M22 24L19 21M22 24L25 21" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="22" cy="36" r="1.5" fill="#10B981"/>
+    <circle cx="22" cy="30" r="1.5" fill="#10B981"/>
+    <circle cx="22" cy="24" r="2" fill="#10B981"/>
+  </g>
+  <text x="50" y="31" font-family="Inter, Pretendard, sans-serif" font-weight="700" font-size="24" fill="#111827" letter-spacing="-0.5">CodeMap</text>
+</svg>

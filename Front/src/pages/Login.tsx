@@ -21,8 +21,8 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Login:', formData);
-    // Simulate login success - redirect to dashboard
-    window.location.hash = 'dashboard';
+    // Simulate login success - redirect to main page
+    window.location.hash = 'main';
   };
 
   return (
@@ -48,11 +48,19 @@ export default function Login() {
 
           {/* Social Login */}
           <div className="space-y-3 mb-6">
-            <button className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3">
+            <button 
+              onClick={() => window.location.hash = 'main'}
+              type="button"
+              className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+            >
               <Github className="w-5 h-5" />
               <span>GitHub으로 로그인</span>
             </button>
-            <button className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3">
+            <button 
+              onClick={() => window.location.hash = 'main'}
+              type="button"
+              className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+            >
               <Mail className="w-5 h-5" />
               <span>Google로 로그인</span>
             </button>
@@ -138,6 +146,15 @@ export default function Login() {
               className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all hover:-translate-y-0.5 shadow-lg hover:shadow-xl"
             >
               로그인
+            </button>
+
+            {/* Demo Button */}
+            <button
+              type="button"
+              onClick={() => window.location.hash = 'main'}
+              className="w-full px-6 py-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
+            >
+              데모 계정으로 체험하기
             </button>
           </form>
 

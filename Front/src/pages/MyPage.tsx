@@ -21,8 +21,13 @@ import {
   MoreVertical
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
+import GrowthLevel, { GrowthProgress, GrowthStages } from '../components/GrowthLevel';
 
 export default function MyPage() {
+  // 사용자 레벨 상태 (실제로는 API에서 가져올 데이터)
+  const [userLevel, setUserLevel] = useState<1 | 2 | 3 | 4 | 5>(3);
+  const [userExp, setUserExp] = useState(450);
+
   const roadmaps = [
     {
       title: 'React 풀스택 개발자',
@@ -133,6 +138,11 @@ export default function MyPage() {
       <div className="mb-8">
         <h2 className="text-3xl text-gray-900 mb-2">안녕하세요, 개발자123님! 👋</h2>
         <p className="text-gray-600">오늘도 성장하는 하루 되세요</p>
+      </div>
+
+      {/* Growth Progress Section */}
+      <div className="mb-8">
+        <GrowthProgress level={userLevel} currentExp={userExp} />
       </div>
 
       {/* Stats Grid */}
@@ -310,6 +320,11 @@ export default function MyPage() {
 
         {/* Right Column - Recent Activity */}
         <div className="lg:col-span-1">
+          {/* Growth Stages Info */}
+          <div className="mb-6">
+            <GrowthStages />
+          </div>
+
           <h3 className="text-xl text-gray-900 mb-4">최근 활동</h3>
           
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">

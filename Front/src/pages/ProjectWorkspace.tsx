@@ -44,6 +44,7 @@ import {
 import ScheduleDetailModal from '../components/ScheduleDetailModal';
 import ScheduleTimeline from '../components/ScheduleTimeline';
 import AiProjectSetup from '../components/AiProjectSetup';
+import AiPlanView from '../components/AiPlanView';
 
 interface ProjectWorkspaceProps {
   projectId?: string;
@@ -98,6 +99,9 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     targetUsers: '',
     projectGoal: ''
   });
+  
+  // AI Plan state - stores the generated plan after AI setup
+  const [aiPlan, setAiPlan] = useState<any>(null);
   
   const [chatMessages, setChatMessages] = useState([
     {
@@ -197,6 +201,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50',
       items: [
+        { id: 'ai-plan', label: 'AI 계획', icon: Sparkles },
         { id: 'motivation', label: '프로젝트 동기', icon: Target },
         { id: 'goals', label: '프로젝트 목표', icon: Target },
         { id: 'requirements', label: '요구사항 정의', icon: FileText },
@@ -307,6 +312,9 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
 
     // Render different content based on selected item
     switch (selectedItem) {
+      case 'ai-plan':
+        return <AiPlanView aiPlan={aiPlan} />;
+      
       case 'motivation':
         return (
           <div className="space-y-6">
@@ -817,7 +825,37 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         projectName={project.name}
         onComplete={(data, mode) => {
           console.log('AI Setup completed:', { data, mode });
-          // TODO: AI에게 데이터 전송 및 프로젝트 구조 생성
+          
+          // Generate AI plan based on the mode and data
+          if (mode === 'guided') {
+            // For guided mode, create a structured plan
+            setAiPlan({
+              description: data.description,
+              targetUsers: data.targetUsers,
+              projectGoal: data.projectGoal,
+              languages: data.languages || [],
+              frameworks: data.frameworks || [],
+              coreFeatures: data.coreFeatures.filter((f: string) => f.trim() !== ''),
+              mode: 'guided'
+            });
+            
+            // Set the initial view to AI plan
+            setSelectedCategory('planning');
+            setSelectedItem('ai-plan');
+          } else if (mode === 'scratch') {
+            // For scratch mode, store the free input
+            setAiPlan({
+              freeInput: data.freeInput,
+              mode: 'scratch'
+            });
+            
+            // Set the initial view to AI plan
+            setSelectedCategory('planning');
+            setSelectedItem('ai-plan');
+          }
+          
+          setAiSetupData(data);
+          setAiSetupMode(mode);
           setShowAiSetup(false);
         }}
         onBack={() => window.location.hash = '#projects'}

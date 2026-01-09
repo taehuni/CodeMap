@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 export default function CTASection() {
@@ -40,10 +41,10 @@ export default function CTASection() {
           지금 가입하고 모든 기능을 무료로 사용하세요
         </p>
         
-        <a href="#signup" className="px-14 py-6 bg-white text-blue-600 rounded-xl hover:bg-gray-50 transition-all hover:-translate-y-1 shadow-2xl text-xl inline-flex items-center gap-3 h-16">
+        <Link to="/register" className="px-14 py-6 bg-white text-blue-600 rounded-xl hover:bg-gray-50 transition-all hover:-translate-y-1 shadow-2xl text-xl inline-flex items-center gap-3 h-16">
           무료로 시작하기
           <ArrowRight className="w-6 h-6" />
-        </a>
+        </Link>
       </div>
     </section>
   );

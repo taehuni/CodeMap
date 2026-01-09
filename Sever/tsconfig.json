@@ -33,7 +33,7 @@
 
     // Recommended Options
     "strict": true,
-    "verbatimModuleSyntax": true,
+    // "verbatimModuleSyntax": true,  // Disabled for ts-node compatibility
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",

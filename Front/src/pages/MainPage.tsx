@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  TrendingUp, 
-  Clock, 
-  Users, 
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Sparkles,
+  TrendingUp,
+  Clock,
+  Users,
   Star,
   ChevronRight,
   Filter,
@@ -18,6 +19,7 @@ import {
 import DashboardLayout from '../components/DashboardLayout';
 
 export default function MainPage() {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const categories = [
@@ -238,7 +240,10 @@ export default function MainPage() {
               </div>
             </div>
 
-            <button className="px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-all inline-flex items-center gap-2 shadow-lg">
+            <button
+              onClick={() => navigate('/projects')}
+              className="px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-all inline-flex items-center gap-2 shadow-lg"
+            >
               <Play className="w-5 h-5" />
               프로젝트 시작하기
             </button>
@@ -284,15 +289,19 @@ export default function MainPage() {
             <h3 className="text-2xl text-gray-900 mb-1">진행 가능한 프로젝트</h3>
             <p className="text-gray-600">AI와 함께 실전 프로젝트를 완성해보세요</p>
           </div>
-          <a href="#projects" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
+          <Link to="/projects" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
             전체보기
             <ChevronRight className="w-5 h-5" />
-          </a>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project, index) => (
-            <div key={index} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-all group cursor-pointer">
+            <div
+              key={index}
+              onClick={() => navigate(`/workspace/${index + 1}`)}
+              className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-all group cursor-pointer"
+            >
               <div className="relative h-48 overflow-hidden">
                 <img 
                   src={project.image}
@@ -351,15 +360,19 @@ export default function MainPage() {
             <h3 className="text-2xl text-gray-900 mb-1">이번 주 챌린지</h3>
             <p className="text-gray-600">실력을 겨루고 성장하세요</p>
           </div>
-          <a href="#challenge" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
+          <Link to="/challenge" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
             전체보기
             <ChevronRight className="w-5 h-5" />
-          </a>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {challenges.map((challenge, index) => (
-            <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer">
+            <div
+              key={index}
+              onClick={() => navigate('/challenge')}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-4">
                 <Award className="w-10 h-10 text-yellow-500" />
                 <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
@@ -395,15 +408,19 @@ export default function MainPage() {
             <h3 className="text-2xl text-gray-900 mb-1">인기 코딩 테스트</h3>
             <p className="text-gray-600">알고리즘 실력을 키워보세요</p>
           </div>
-          <a href="#coding-test" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
+          <Link to="/coding-test" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
             전체보기
             <ChevronRight className="w-5 h-5" />
-          </a>
+          </Link>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
           {codingTests.map((test, index) => (
-            <div key={index} className="p-6 hover:bg-gray-50 transition-colors cursor-pointer">
+            <div
+              key={index}
+              onClick={() => navigate('/coding-test')}
+              className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h4 className="text-lg text-gray-900 mb-1">{test.title}</h4>
@@ -451,15 +468,19 @@ export default function MainPage() {
             <h3 className="text-2xl text-gray-900 mb-1">인기 커뮤니티 글</h3>
             <p className="text-gray-600">개발자들의 지식과 경험을 나눠보세요</p>
           </div>
-          <a href="#community" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
+          <Link to="/community" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
             전체보기
             <ChevronRight className="w-5 h-5" />
-          </a>
+          </Link>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
           {communityPosts.map((post, index) => (
-            <div key={index} className="p-6 hover:bg-gray-50 transition-colors cursor-pointer">
+            <div
+              key={index}
+              onClick={() => navigate('/community')}
+              className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">

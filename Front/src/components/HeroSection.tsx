@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
 export default function HeroSection() {
@@ -37,10 +38,10 @@ export default function HeroSection() {
             </p>
             
             <div className="flex flex-wrap gap-4 mb-4">
-              <a href="#signup" className="px-12 py-5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all hover:-translate-y-1 shadow-lg hover:shadow-xl text-lg h-14 flex items-center gap-2">
+              <Link to="/register" className="px-12 py-5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all hover:-translate-y-1 shadow-lg hover:shadow-xl text-lg h-14 flex items-center gap-2">
                 나만의 로드맵 만들기
                 <ArrowRight className="w-5 h-5" />
-              </a>
+              </Link>
               <button className="px-10 py-5 border-2 border-blue-500 text-blue-500 bg-transparent rounded-lg hover:bg-blue-50 transition-all h-14 flex items-center text-lg">
                 기능 둘러보기
               </button>

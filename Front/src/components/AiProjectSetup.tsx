@@ -11,25 +11,48 @@ import {
 
 interface AiProjectSetupProps {
   projectName: string;
+  projectInfo?: any;
   onComplete: (data: any, mode: 'scratch' | 'guided') => void;
   onBack: () => void;
 }
 
-export default function AiProjectSetup({ projectName, onComplete, onBack }: AiProjectSetupProps) {
+export default function AiProjectSetup({ projectName, projectInfo, onComplete, onBack }: AiProjectSetupProps) {
   const [aiSetupMode, setAiSetupMode] = useState<'scratch' | 'guided' | null>(null);
-  const [aiSetupData, setAiSetupData] = useState({
-    // For 'scratch' mode
-    freeInput: '',
-    // For 'guided' mode
-    devEnvironment: '',
-    languages: [] as string[],
-    frameworks: [] as string[],
-    topic: '',
-    description: '',
-    coreFeatures: [''],
-    targetUsers: '',
-    projectGoal: ''
-  });
+
+  // 프로젝트 정보에서 초기값 추출
+  const getInitialData = () => {
+    if (!projectInfo) {
+      return {
+        freeInput: '',
+        devEnvironment: '',
+        languages: [],
+        frameworks: [],
+        topic: '',
+        description: '',
+        coreFeatures: [''],
+        targetUsers: '',
+        projectGoal: '',
+        difficulty: '',
+        duration: ''
+      };
+    }
+
+    return {
+      freeInput: '',
+      devEnvironment: '',
+      languages: projectInfo.techStack || [],
+      frameworks: [],
+      topic: projectInfo.category || '',
+      description: projectInfo.description || '',
+      coreFeatures: [''],
+      targetUsers: '',
+      projectGoal: '',
+      difficulty: projectInfo.difficulty || '',
+      duration: projectInfo.duration || ''
+    };
+  };
+
+  const [aiSetupData, setAiSetupData] = useState(getInitialData());
 
   // For input fields
   const [languageInput, setLanguageInput] = useState('');
@@ -66,17 +89,7 @@ export default function AiProjectSetup({ projectName, onComplete, onBack }: AiPr
 
   const resetAndGoBack = () => {
     setAiSetupMode(null);
-    setAiSetupData({
-      freeInput: '',
-      devEnvironment: '',
-      languages: [],
-      frameworks: [],
-      topic: '',
-      description: '',
-      coreFeatures: [''],
-      targetUsers: '',
-      projectGoal: ''
-    });
+    setAiSetupData(getInitialData());
     setLanguageInput('');
     setFrameworkInput('');
   };

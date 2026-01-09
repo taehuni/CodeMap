@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  FolderKanban, 
-  Code, 
-  Trophy, 
-  MessageSquare, 
-  Bell, 
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  FolderKanban,
+  Code,
+  Trophy,
+  MessageSquare,
+  Bell,
   Search,
   Settings,
   LogOut,
@@ -13,21 +14,28 @@ import {
   User
 } from 'lucide-react';
 import CodeMapLogo from './CodeMapLogo';
+import { logout } from '../api/auth';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const navigationItems = [
-    { icon: Home, label: '홈', href: '#main', badge: null },
-    { icon: FolderKanban, label: '프로젝트', href: '#projects', badge: null },
-    { icon: Code, label: '코딩 테스트', href: '#coding-test', badge: null },
-    { icon: Trophy, label: '챌린지', href: '#challenge', badge: 'New' },
-    { icon: MessageSquare, label: '커뮤니티', href: '#community', badge: null },
+    { icon: Home, label: '홈', href: '/main', badge: null },
+    { icon: FolderKanban, label: '프로젝트', href: '/projects', badge: null },
+    { icon: Code, label: '코딩 테스트', href: '/coding-test', badge: null },
+    { icon: Trophy, label: '챌린지', href: '/challenge', badge: 'New' },
+    { icon: MessageSquare, label: '커뮤니티', href: '/community', badge: null },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -43,9 +51,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {navigationItems.map((item) => {
             const Icon = item.icon;
             return (
-              <a
+              <Link
                 key={item.label}
-                href={item.href}
+                to={item.href}
                 className="flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors group"
               >
                 <div className="flex items-center gap-3">
@@ -54,14 +62,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
                 {item.badge && (
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    item.badge === 'New' 
-                      ? 'bg-blue-100 text-blue-600' 
+                    item.badge === 'New'
+                      ? 'bg-blue-100 text-blue-600'
                       : 'bg-gray-200 text-gray-700'
                   }`}>
                     {item.badge}
                   </span>
                 )}
-              </a>
+              </Link>
             );
           })}
           
@@ -69,15 +77,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="h-px bg-gray-200 my-2"></div>
           
           {/* My Page Link */}
-          <a
-            href="#mypage"
+          <Link
+            to="/mypage"
             className="flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors group"
           >
             <div className="flex items-center gap-3">
               <User className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
               <span className="text-gray-700 group-hover:text-gray-900">마이페이지</span>
             </div>
-          </a>
+          </Link>
         </nav>
 
         {/* User Profile */}
@@ -98,18 +106,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {showProfileMenu && (
             <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-              <a href="#mypage" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+              <Link to="/mypage" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
                 <User className="w-4 h-4 text-gray-600" />
                 <span className="text-sm text-gray-700">마이페이지</span>
-              </a>
-              <a href="#settings" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+              </Link>
+              <Link to="/settings" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
                 <Settings className="w-4 h-4 text-gray-600" />
                 <span className="text-sm text-gray-700">설정</span>
-              </a>
-              <a href="#" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+              </Link>
+              <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 w-full text-left">
                 <LogOut className="w-4 h-4 text-gray-600" />
                 <span className="text-sm text-gray-700">로그아웃</span>
-              </a>
+              </button>
             </div>
           )}
         </div>

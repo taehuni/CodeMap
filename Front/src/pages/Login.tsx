@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Github, Mail } from 'lucide-react';
 import CodeMapLogo from '../components/CodeMapLogo';
+import { login, saveAuth } from '../api/auth';
 
 export default function Login() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -18,11 +23,24 @@ export default function Login() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login:', formData);
-    // Simulate login success - redirect to main page
-    window.location.hash = 'main';
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await login({
+        email: formData.email,
+        password: formData.password
+      });
+
+      saveAuth(response.token, response.user);
+      navigate('/main');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인에 실패했습니다');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,10 +48,10 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Back Button */}
         <div className="mb-8">
-          <a href="#" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
             <ArrowLeft className="w-5 h-5" />
             <span>홈으로 돌아가기</span>
-          </a>
+          </Link>
         </div>
 
         {/* Login Card */}
@@ -48,21 +66,21 @@ export default function Login() {
 
           {/* Social Login */}
           <div className="space-y-3 mb-6">
-            <button 
-              onClick={() => window.location.hash = 'main'}
+            <button
               type="button"
-              className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+              className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3 opacity-50 cursor-not-allowed"
+              disabled
             >
               <Github className="w-5 h-5" />
-              <span>GitHub으로 로그인</span>
+              <span>GitHub으로 로그인 (준비 중)</span>
             </button>
-            <button 
-              onClick={() => window.location.hash = 'main'}
+            <button
               type="button"
-              className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+              className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-3 opacity-50 cursor-not-allowed"
+              disabled
             >
               <Mail className="w-5 h-5" />
-              <span>Google로 로그인</span>
+              <span>Google로 로그인 (준비 중)</span>
             </button>
           </div>
 
@@ -74,6 +92,13 @@ export default function Login() {
               <span className="px-4 bg-white text-gray-500">또는 이메일로 로그인</span>
             </div>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -143,15 +168,16 @@ export default function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all hover:-translate-y-0.5 shadow-lg hover:shadow-xl"
+              disabled={loading}
+              className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all hover:-translate-y-0.5 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              로그인
+              {loading ? '로그인 중...' : '로그인'}
             </button>
 
             {/* Demo Button */}
             <button
               type="button"
-              onClick={() => window.location.hash = 'main'}
+              onClick={() => navigate('/main')}
               className="w-full px-6 py-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all"
             >
               데모 계정으로 체험하기
@@ -161,9 +187,9 @@ export default function Login() {
           {/* Sign Up Link */}
           <p className="text-center text-sm text-gray-600 mt-6">
             계정이 없으신가요?{' '}
-            <a href="/signup" className="text-blue-500 hover:text-blue-600">
+            <Link to="/signup" className="text-blue-500 hover:text-blue-600">
               회원가입
-            </a>
+            </Link>
           </p>
         </div>
 

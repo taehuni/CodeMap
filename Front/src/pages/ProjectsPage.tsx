@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   Plus,
   Search,
   Filter,
@@ -17,6 +18,7 @@ import DashboardLayout from '../components/DashboardLayout';
 import CreateProjectModal from '../components/CreateProjectModal';
 
 export default function ProjectsPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [selectedTech, setSelectedTech] = useState('all');
@@ -305,8 +307,17 @@ export default function ProjectsPage() {
     console.log('Creating project:', projectData);
     // TODO: API 호출로 프로젝트 생성
     // 프로젝트 생성 후 워크스페이스로 이동
-    const projectId = Date.now();
-    window.location.hash = `#workspace=${projectId}&aiAssisted=${projectData.aiAssisted}`;
+    const projectId = Date.now().toString();
+
+    // localStorage에 프로젝트 데이터 저장
+    const projectWithId = {
+      ...projectData,
+      id: projectId,
+      createdAt: new Date().toISOString()
+    };
+    localStorage.setItem(`project_${projectId}`, JSON.stringify(projectWithId));
+
+    navigate(`/workspace/${projectId}?aiAssisted=${projectData.aiAssisted}`);
   };
 
   return (

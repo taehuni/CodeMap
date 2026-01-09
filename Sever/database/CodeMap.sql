@@ -173,7 +173,7 @@ CREATE TABLE projects (
   ai_assisted BOOLEAN DEFAULT FALSE COMMENT 'AI 도움 사용 여부',
 
   -- AI 설정 정보 (AiProjectSetup 컴포넌트에서 수집)
-  ai_setup_mode ENUM('scratch', 'guided', NULL) COMMENT 'AI 설정 모드 (자유 입력/가이드 모드)',
+  ai_setup_mode ENUM('scratch', 'guided') DEFAULT NULL COMMENT 'AI 설정 모드 (자유 입력/가이드 모드)',
   ai_free_input TEXT COMMENT 'Scratch 모드 자유 입력 내용',
   dev_environment VARCHAR(100) COMMENT '개발 환경 (Web, Mobile, Desktop 등)',
   topic VARCHAR(200) COMMENT '프로젝트 주제',

@@ -29,9 +29,9 @@ export default function AiPlanView({ aiPlan }: AiPlanViewProps) {
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl text-gray-900 mb-2">AI와 함께 프로젝트 시작하기</h2>
+              <h2 className="text-xl text-gray-900 mb-2">AI 생성 프로젝트 계획</h2>
               <p className="text-sm text-gray-600">
-                아이디어를 구체화하고, AI와 대화하며 프로젝트를 만들어가세요.
+                입력하신 아이디어를 바탕으로 AI가 프로젝트 계획을 생성했습니다.
               </p>
             </div>
           </div>
@@ -52,6 +52,232 @@ export default function AiPlanView({ aiPlan }: AiPlanViewProps) {
           </div>
         </section>
 
+        {/* Tech Stack */}
+        {aiPlan.techStack && (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Code className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="text-gray-900">AI 추천 기술 스택</h3>
+            </div>
+            <div className="space-y-4">
+              {aiPlan.techStack.frontend?.length > 0 && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">프론트엔드</label>
+                  <div className="flex flex-wrap gap-2">
+                    {aiPlan.techStack.frontend.map((tech: string, idx: number) => (
+                      <span key={idx} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {aiPlan.techStack.backend?.length > 0 && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">백엔드</label>
+                  <div className="flex flex-wrap gap-2">
+                    {aiPlan.techStack.backend.map((tech: string, idx: number) => (
+                      <span key={idx} className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {aiPlan.techStack.database?.length > 0 && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">데이터베이스</label>
+                  <div className="flex flex-wrap gap-2">
+                    {aiPlan.techStack.database.map((tech: string, idx: number) => (
+                      <span key={idx} className="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {aiPlan.techStack.tools?.length > 0 && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">도구</label>
+                  <div className="flex flex-wrap gap-2">
+                    {aiPlan.techStack.tools.map((tech: string, idx: number) => (
+                      <span key={idx} className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-sm">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Features */}
+        {aiPlan.features && aiPlan.features.length > 0 && (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="text-gray-900">AI 추천 핵심 기능</h3>
+            </div>
+            <div className="space-y-3">
+              {aiPlan.features.map((feature: any, idx: number) => (
+                <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="text-sm text-gray-900">{feature.title}</h4>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      feature.priority === 'high'
+                        ? 'bg-red-100 text-red-700'
+                        : feature.priority === 'medium'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {feature.priority === 'high' ? '높음' : feature.priority === 'medium' ? '중간' : '낮음'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Roadmap */}
+        {aiPlan.roadmap && aiPlan.roadmap.length > 0 && (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 className="text-gray-900">AI 추천 로드맵</h3>
+            </div>
+            <div className="space-y-3">
+              {aiPlan.roadmap.map((phase: any, idx: number) => (
+                <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm text-gray-900">{phase.phase}</h4>
+                    <span className="text-xs text-gray-600">{phase.duration}</span>
+                  </div>
+                  <ul className="space-y-1">
+                    {phase.tasks && phase.tasks.map((task: any, taskIdx: number) => {
+                      const taskText = typeof task === 'string' ? task : task.title;
+                      const taskDesc = typeof task === 'object' ? task.description : '';
+
+                      return (
+                        <li key={taskIdx} className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <span className="text-xs text-gray-700">{taskText}</span>
+                            {taskDesc && <p className="text-xs text-gray-500 mt-0.5">{taskDesc}</p>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* File Structure */}
+        {aiPlan.fileStructure && (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <Layers className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h3 className="text-gray-900">AI 추천 파일 구조</h3>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="space-y-4">
+                {aiPlan.fileStructure.frontend && (
+                  <div>
+                    <h4 className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                      <Code className="w-4 h-4 text-blue-600" />
+                      프론트엔드
+                    </h4>
+                    <div className="ml-6 space-y-1">
+                      {aiPlan.fileStructure.frontend.map((folder: string, idx: number) => (
+                        <div key={idx} className="text-sm text-gray-600 font-mono">{folder}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiPlan.fileStructure.backend && (
+                  <div>
+                    <h4 className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                      <Code className="w-4 h-4 text-green-600" />
+                      백엔드
+                    </h4>
+                    <div className="ml-6 space-y-1">
+                      {aiPlan.fileStructure.backend.map((folder: string, idx: number) => (
+                        <div key={idx} className="text-sm text-gray-600 font-mono">{folder}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiPlan.fileStructure.database && (
+                  <div>
+                    <h4 className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                      <Code className="w-4 h-4 text-orange-600" />
+                      데이터베이스
+                    </h4>
+                    <div className="ml-6 space-y-1">
+                      {aiPlan.fileStructure.database.map((folder: string, idx: number) => (
+                        <div key={idx} className="text-sm text-gray-600 font-mono">{folder}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiPlan.fileStructure.config && (
+                  <div>
+                    <h4 className="text-sm text-gray-700 mb-2 flex items-center gap-2">
+                      <Code className="w-4 h-4 text-purple-600" />
+                      설정 파일
+                    </h4>
+                    <div className="ml-6 space-y-1">
+                      {aiPlan.fileStructure.config.map((folder: string, idx: number) => (
+                        <div key={idx} className="text-sm text-gray-600 font-mono">{folder}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {aiPlan.fileStructure.description && (
+                <p className="text-xs text-gray-600 mt-4 pt-4 border-t border-gray-200">
+                  {aiPlan.fileStructure.description}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* AI Recommendations */}
+        {aiPlan.recommendations && aiPlan.recommendations.length > 0 && (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Lightbulb className="w-5 h-5 text-yellow-600" />
+              </div>
+              <h3 className="text-gray-900">AI 추천 사항</h3>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <ul className="space-y-1.5">
+                {aiPlan.recommendations.map((rec: string, idx: number) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-yellow-600">•</span>
+                    <span>{rec}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
         {/* Next Steps for Scratch Mode */}
         <section className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -61,36 +287,11 @@ export default function AiPlanView({ aiPlan }: AiPlanViewProps) {
             <h3 className="text-gray-900">다음 단계</h3>
           </div>
           <div className="space-y-2">
+            <p className="text-sm text-gray-700">✅ AI가 생성한 계획을 검토하고 수정하세요</p>
             <p className="text-sm text-gray-700">✅ 우측 하단의 AI 챗봇과 대화하며 아이디어를 구체화하세요</p>
             <p className="text-sm text-gray-700">✅ 프로젝트 동기와 목표를 문서로 정리하세요</p>
             <p className="text-sm text-gray-700">✅ 요구사항을 정의하고 핵심 기능을 선정하세요</p>
-            <p className="text-sm text-gray-700">✅ 일정 관리에서 프로젝트 일정을 계획하세요</p>
             <p className="text-sm text-gray-700">✅ 팀원들과 함께 프로젝트를 진행하세요</p>
-          </div>
-        </section>
-
-        {/* AI Recommendations */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Lightbulb className="w-5 h-5 text-yellow-600" />
-            </div>
-            <h3 className="text-gray-900">AI 추천 사항</h3>
-          </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex gap-3">
-              <Lightbulb className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm text-gray-900 mb-2">프로젝트를 성공적으로 진행하려면</h4>
-                <ul className="space-y-1.5 text-xs text-gray-700">
-                  <li>• 명확한 목표와 요구사항을 정의하세요</li>
-                  <li>• 작은 단위로 나누어 점진적으로 개발하세요</li>
-                  <li>• 정기적으로 팀원들과 소통하고 피드백을 받으세요</li>
-                  <li>• Git을 활용한 버전 관리를 철저히 하세요</li>
-                  <li>• 코드 리뷰와 테스트를 습관화하세요</li>
-                </ul>
-              </div>
-            </div>
           </div>
         </section>
       </div>

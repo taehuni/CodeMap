@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import CodeMapLogo from './CodeMapLogo';
 
@@ -51,12 +52,12 @@ export default function Navigation() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <a href="#login" className="px-6 py-3 text-gray-600 hover:text-gray-900 transition-colors">
+            <Link to="/login" className="px-6 py-3 text-gray-600 hover:text-gray-900 transition-colors">
               로그인
-            </a>
-            <a href="#signup" className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all hover:-translate-y-0.5">
+            </Link>
+            <Link to="/register" className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all hover:-translate-y-0.5">
               회원가입
-            </a>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -82,12 +83,12 @@ export default function Navigation() {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-gray-100">
-                <a href="#login" className="px-6 py-3 text-gray-600 hover:text-gray-900 transition-colors text-left">
+                <Link to="/login" className="px-6 py-3 text-gray-600 hover:text-gray-900 transition-colors text-left">
                   로그인
-                </a>
-                <a href="#signup" className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all">
+                </Link>
+                <Link to="/register" className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all">
                   회원가입
-                </a>
+                </Link>
               </div>
             </div>
           </div>

@@ -56,22 +56,34 @@ export default function CreateProjectModal({ isOpen, onClose, onSubmit }: Create
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    onClose();
-    // Reset form
-    setFormData({
-      name: '',
-      description: '',
-      category: '',
-      difficulty: '',
-      duration: '',
-      techStack: [],
-      teamMembers: [],
-      aiAssisted: true,
-      isRecruiting: false,
-      isPublic: true
-    });
-    setStep(1);
+
+    // Step 1에서 Enter를 누른 경우, 다음 단계로 이동
+    if (step === 1) {
+      if (formData.name && formData.category) {
+        setStep(2);
+      }
+      return;
+    }
+
+    // Step 2에서만 실제 제출
+    if (step === 2) {
+      onSubmit(formData);
+      onClose();
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        category: '',
+        difficulty: '',
+        duration: '',
+        techStack: [],
+        teamMembers: [],
+        aiAssisted: true,
+        isRecruiting: false,
+        isPublic: true
+      });
+      setStep(1);
+    }
   };
 
   const toggleTech = (tech: string) => {

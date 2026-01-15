@@ -1,13 +1,36 @@
 import React, { useState } from 'react';
-import { 
+import {
   ArrowLeft,
   Sparkles,
   Target,
   ChevronRight,
   Plus,
   Trash2,
-  X
+  Search
 } from 'lucide-react';
+
+// 미리 정의된 언어/프레임워크 목록 (컴포넌트 외부에 정의)
+const LANGUAGE_OPTIONS = [
+  'JavaScript', 'TypeScript', 'Python', 'Java', 'C#', 'C++',
+  'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Dart',
+  'Scala', 'R', 'MATLAB', 'SQL', 'HTML/CSS'
+];
+
+const FRAMEWORK_OPTIONS = [
+  // Frontend
+  'React', 'Vue.js', 'Angular', 'Next.js', 'Nuxt.js', 'Svelte',
+  // Backend
+  'Node.js', 'Express', 'NestJS', 'Django', 'Flask', 'FastAPI',
+  'Spring Boot', 'ASP.NET', 'Ruby on Rails', 'Laravel',
+  // Mobile
+  'React Native', 'Flutter', 'SwiftUI', 'Jetpack Compose',
+  // CSS/UI
+  'Tailwind CSS', 'Bootstrap', 'Material UI', 'Chakra UI',
+  // Database
+  'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase',
+  // DevOps
+  'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure'
+];
 
 interface AiProjectSetupProps {
   projectName: string;
@@ -25,8 +48,8 @@ export default function AiProjectSetup({ projectName, projectInfo, onComplete, o
       return {
         freeInput: '',
         devEnvironment: '',
-        languages: [],
-        frameworks: [],
+        languages: [] as string[],
+        frameworks: [] as string[],
         topic: '',
         description: '',
         coreFeatures: [''],
@@ -37,11 +60,27 @@ export default function AiProjectSetup({ projectName, projectInfo, onComplete, o
       };
     }
 
+    // techStack을 언어와 프레임워크로 분류
+    const techStack = projectInfo.techStack || [];
+    const initialLanguages: string[] = [];
+    const initialFrameworks: string[] = [];
+
+    techStack.forEach((tech: string) => {
+      if (LANGUAGE_OPTIONS.includes(tech)) {
+        initialLanguages.push(tech);
+      } else if (FRAMEWORK_OPTIONS.includes(tech)) {
+        initialFrameworks.push(tech);
+      } else {
+        // 목록에 없는 항목은 프레임워크로 분류 (대부분 라이브러리/프레임워크)
+        initialFrameworks.push(tech);
+      }
+    });
+
     return {
       freeInput: '',
       devEnvironment: '',
-      languages: projectInfo.techStack || [],
-      frameworks: [],
+      languages: initialLanguages,
+      frameworks: initialFrameworks,
       topic: projectInfo.category || '',
       description: projectInfo.description || '',
       coreFeatures: [''],
@@ -54,9 +93,36 @@ export default function AiProjectSetup({ projectName, projectInfo, onComplete, o
 
   const [aiSetupData, setAiSetupData] = useState(getInitialData());
 
-  // For input fields
-  const [languageInput, setLanguageInput] = useState('');
-  const [frameworkInput, setFrameworkInput] = useState('');
+  // 검색 필터
+  const [languageSearch, setLanguageSearch] = useState('');
+  const [frameworkSearch, setFrameworkSearch] = useState('');
+
+  // 필터링된 목록
+  const filteredLanguages = LANGUAGE_OPTIONS.filter(lang =>
+    lang.toLowerCase().includes(languageSearch.toLowerCase())
+  );
+  const filteredFrameworks = FRAMEWORK_OPTIONS.filter(fw =>
+    fw.toLowerCase().includes(frameworkSearch.toLowerCase())
+  );
+
+  // 토글 함수
+  const toggleLanguage = (lang: string) => {
+    setAiSetupData(prev => ({
+      ...prev,
+      languages: prev.languages.includes(lang)
+        ? prev.languages.filter(l => l !== lang)
+        : [...prev.languages, lang]
+    }));
+  };
+
+  const toggleFramework = (fw: string) => {
+    setAiSetupData(prev => ({
+      ...prev,
+      frameworks: prev.frameworks.includes(fw)
+        ? prev.frameworks.filter(f => f !== fw)
+        : [...prev.frameworks, fw]
+    }));
+  };
 
   const addCoreFeature = () => {
     setAiSetupData({
@@ -90,42 +156,8 @@ export default function AiProjectSetup({ projectName, projectInfo, onComplete, o
   const resetAndGoBack = () => {
     setAiSetupMode(null);
     setAiSetupData(getInitialData());
-    setLanguageInput('');
-    setFrameworkInput('');
-  };
-
-  const addLanguage = () => {
-    if (languageInput.trim() && !aiSetupData.languages.includes(languageInput.trim())) {
-      setAiSetupData({
-        ...aiSetupData,
-        languages: [...aiSetupData.languages, languageInput.trim()]
-      });
-      setLanguageInput('');
-    }
-  };
-
-  const removeLanguage = (index: number) => {
-    setAiSetupData({
-      ...aiSetupData,
-      languages: aiSetupData.languages.filter((_, i) => i !== index)
-    });
-  };
-
-  const addFramework = () => {
-    if (frameworkInput.trim() && !aiSetupData.frameworks.includes(frameworkInput.trim())) {
-      setAiSetupData({
-        ...aiSetupData,
-        frameworks: [...aiSetupData.frameworks, frameworkInput.trim()]
-      });
-      setFrameworkInput('');
-    }
-  };
-
-  const removeFramework = (index: number) => {
-    setAiSetupData({
-      ...aiSetupData,
-      frameworks: aiSetupData.frameworks.filter((_, i) => i !== index)
-    });
+    setLanguageSearch('');
+    setFrameworkSearch('');
   };
 
   return (
@@ -294,101 +326,193 @@ export default function AiProjectSetup({ projectName, projectInfo, onComplete, o
                   </select>
                 </div>
 
-                {/* Programming Languages - Tag Input */}
+                {/* Programming Languages - Button Selection */}
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">주 프로그래밍 언어 *</label>
-                  <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-gray-700">주 프로그래밍 언어 *</label>
                     {aiSetupData.languages.length > 0 && (
-                      <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 min-h-[3rem]">
-                        {aiSetupData.languages.map((language, index) => (
-                          <div
-                            key={index}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-200"
-                          >
-                            <span className="text-sm">{language}</span>
-                            <button
-                              onClick={() => removeLanguage(index)}
-                              className="text-blue-700 hover:text-red-600 transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                      <span className="text-xs text-blue-600">{aiSetupData.languages.length}개 선택됨</span>
                     )}
-                    <div className="flex gap-2">
+                  </div>
+
+                  {/* 선택된 언어 표시 */}
+                  {aiSetupData.languages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 mb-3 border border-blue-200 rounded-lg bg-blue-50">
+                      {aiSetupData.languages.map((lang) => (
+                        <span
+                          key={lang}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-full"
+                        >
+                          {lang}
+                          <button
+                            type="button"
+                            onClick={() => toggleLanguage(lang)}
+                            className="hover:bg-blue-700 rounded-full p-0.5"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 직접 입력 */}
+                  <div className="flex gap-2 mb-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="text"
-                        value={languageInput}
-                        onChange={(e) => setLanguageInput(e.target.value)}
+                        value={languageSearch}
+                        onChange={(e) => setLanguageSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="검색 또는 직접 입력..."
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            addLanguage();
+                            if (languageSearch.trim() && !aiSetupData.languages.includes(languageSearch.trim())) {
+                              setAiSetupData(prev => ({
+                                ...prev,
+                                languages: [...prev.languages, languageSearch.trim()]
+                              }));
+                              setLanguageSearch('');
+                            }
                           }
                         }}
-                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="언어를 입력하고 Enter를 누르세요..."
                       />
-                      <button
-                        onClick={addLanguage}
-                        className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      예: JavaScript, TypeScript, Python 등 (여러 개 추가 가능)
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (languageSearch.trim() && !aiSetupData.languages.includes(languageSearch.trim())) {
+                          setAiSetupData(prev => ({
+                            ...prev,
+                            languages: [...prev.languages, languageSearch.trim()]
+                          }));
+                          setLanguageSearch('');
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* 언어 목록 */}
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 border border-gray-200 rounded-lg bg-gray-50">
+                    {filteredLanguages.map((lang) => (
+                      <button
+                        key={lang}
+                        type="button"
+                        onClick={() => toggleLanguage(lang)}
+                        className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                          aiSetupData.languages.includes(lang)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'
+                        }`}
+                      >
+                        {lang}
+                      </button>
+                    ))}
+                    {filteredLanguages.length === 0 && languageSearch && (
+                      <p className="text-sm text-gray-500 w-full text-center py-2">
+                        "{languageSearch}" - Enter를 눌러 직접 추가
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Frameworks - Tag Input */}
+                {/* Frameworks - Button Selection */}
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">프레임워크/라이브러리</label>
-                  <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-gray-700">프레임워크/라이브러리</label>
                     {aiSetupData.frameworks.length > 0 && (
-                      <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 min-h-[3rem]">
-                        {aiSetupData.frameworks.map((framework, index) => (
-                          <div
-                            key={index}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg border border-purple-200"
-                          >
-                            <span className="text-sm">{framework}</span>
-                            <button
-                              onClick={() => removeFramework(index)}
-                              className="text-purple-700 hover:text-red-600 transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                      <span className="text-xs text-purple-600">{aiSetupData.frameworks.length}개 선택됨</span>
                     )}
-                    <div className="flex gap-2">
+                  </div>
+
+                  {/* 선택된 프레임워크 표시 */}
+                  {aiSetupData.frameworks.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 mb-3 border border-purple-200 rounded-lg bg-purple-50">
+                      {aiSetupData.frameworks.map((fw) => (
+                        <span
+                          key={fw}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-full"
+                        >
+                          {fw}
+                          <button
+                            type="button"
+                            onClick={() => toggleFramework(fw)}
+                            className="hover:bg-purple-700 rounded-full p-0.5"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 직접 입력 */}
+                  <div className="flex gap-2 mb-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="text"
-                        value={frameworkInput}
-                        onChange={(e) => setFrameworkInput(e.target.value)}
+                        value={frameworkSearch}
+                        onChange={(e) => setFrameworkSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                        placeholder="검색 또는 직접 입력..."
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            addFramework();
+                            if (frameworkSearch.trim() && !aiSetupData.frameworks.includes(frameworkSearch.trim())) {
+                              setAiSetupData(prev => ({
+                                ...prev,
+                                frameworks: [...prev.frameworks, frameworkSearch.trim()]
+                              }));
+                              setFrameworkSearch('');
+                            }
                           }
                         }}
-                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="프레임워크를 입력하고 Enter를 누르세요..."
                       />
-                      <button
-                        onClick={addFramework}
-                        className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      예: React, Vue, Django, Spring Boot 등 (여러 개 추가 가능)
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (frameworkSearch.trim() && !aiSetupData.frameworks.includes(frameworkSearch.trim())) {
+                          setAiSetupData(prev => ({
+                            ...prev,
+                            frameworks: [...prev.frameworks, frameworkSearch.trim()]
+                          }));
+                          setFrameworkSearch('');
+                        }
+                      }}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* 프레임워크 목록 */}
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 rounded-lg bg-gray-50">
+                    {filteredFrameworks.map((fw) => (
+                      <button
+                        key={fw}
+                        type="button"
+                        onClick={() => toggleFramework(fw)}
+                        className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                          aiSetupData.frameworks.includes(fw)
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:border-purple-400'
+                        }`}
+                      >
+                        {fw}
+                      </button>
+                    ))}
+                    {filteredFrameworks.length === 0 && frameworkSearch && (
+                      <p className="text-sm text-gray-500 w-full text-center py-2">
+                        "{frameworkSearch}" - Enter를 눌러 직접 추가
+                      </p>
+                    )}
                   </div>
                 </div>
 

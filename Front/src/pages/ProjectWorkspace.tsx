@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Sparkles,
-  Code,
-  CheckCircle2,
-  Circle,
-  Users,
-  Globe,
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  Sparkles, 
+  Code, 
+  CheckCircle2, 
+  Circle, 
+  Users, 
+  Globe, 
   Lock,
   Send,
   Loader2,
@@ -48,45 +48,56 @@ import ScheduleDetailModal from '../components/ScheduleDetailModal';
 import ScheduleTimeline from '../components/ScheduleTimeline';
 import AiProjectSetup from '../components/AiProjectSetup';
 import AiPlanView from '../components/AiPlanView';
-import { generateProjectPlan, requestAiHelp, sendChatMessage } from '../api/ai';
+import AiAssistModal from '../components/AiAssistModal';
 
 interface ProjectWorkspaceProps {
   projectId?: string;
 }
 
 export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
 
-  // localStorage에서 프로젝트 데이터 가져오기
-  const getProjectData = () => {
-    const id = projectId || window.location.pathname.split('/').pop();
-    const storedProject = localStorage.getItem(`project_${id}`);
-
-    if (storedProject) {
-      return JSON.parse(storedProject);
+  // 프로젝트 생성 시 전달된 데이터 또는 기본값 사용
+  const getInitialProject = () => {
+    // location.state에서 프로젝트 데이터 확인
+    const stateProject = location.state?.project;
+    if (stateProject) {
+      return {
+        id: projectId || String(Date.now()),
+        name: stateProject.name || '',
+        description: stateProject.description || '',
+        category: stateProject.category || '',
+        difficulty: stateProject.difficulty || '',
+        duration: stateProject.duration || '',
+        techStack: stateProject.techStack || [],
+        teamMembers: stateProject.teamMembers || [],
+        teamSize: stateProject.teamSize || 1,
+        aiAssisted: stateProject.aiAssisted ?? true,
+        isRecruiting: stateProject.isRecruiting ?? false,
+        isPublic: stateProject.isPublic ?? true
+      };
     }
 
-    // Fallback to mock data
+    // 기본값 (프로젝트 데이터가 전달되지 않은 경우)
     return {
-      id: id || '1',
-      name: '실시간 채팅 애플리케이션',
-      description: 'WebSocket을 활용한 실시간 채팅 서비스',
-      category: '웹 개발',
-      difficulty: '중급',
-      duration: '6주',
-      techStack: ['React', 'Node.js', 'Socket.io', 'MongoDB'],
-      teamMembers: [
-        { id: 1, role: '프론트엔드 개발자', name: '김철수', avatar: '👨‍💻' },
-        { id: 2, role: '백엔드 발자', name: '이영희', avatar: '👩‍💻' }
-      ],
+      id: projectId || '1',
+      name: '새 프로젝트',
+      description: '',
+      category: '',
+      difficulty: '',
+      duration: '',
+      techStack: [],
+      teamMembers: [],
+      teamSize: 1,
       aiAssisted: true,
-      isRecruiting: true,
+      isRecruiting: false,
       isPublic: true
     };
   };
 
-  const [project, setProject] = useState(getProjectData());
+  const [project, setProject] = useState(getInitialProject);
 
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [editedProject, setEditedProject] = useState(project);
@@ -97,11 +108,25 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
   const [showAiChat, setShowAiChat] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   
-  // AI Setup states
-  const [showAiSetup, setShowAiSetup] = useState(() => {
-    // URL에서 aiAssisted 파라미터 확인 (React Router 방식)
-    return searchParams.get('aiAssisted') === 'true';
-  });
+  // AI Setup states - URL 파라미터와 연동
+  const showAiSetup = searchParams.get('setup') === 'true';
+
+  // showAiSetup 상태 변경 함수 (URL 업데이트)
+  const setShowAiSetup = useCallback((show: boolean) => {
+    if (show) {
+      setSearchParams({ setup: 'true' });
+    } else {
+      setSearchParams({});
+    }
+  }, [setSearchParams]);
+
+  // 초기 로드 시 aiAssisted 파라미터 체크
+  useEffect(() => {
+    const url = window.location.href;
+    if (url.includes('aiAssisted=true') && !showAiSetup) {
+      setSearchParams({ setup: 'true' });
+    }
+  }, []);
   const [aiSetupMode, setAiSetupMode] = useState<'scratch' | 'guided' | null>(null);
   const [aiSetupData, setAiSetupData] = useState({
     // For 'scratch' mode
@@ -119,92 +144,106 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
   
   // AI Plan state - stores the generated plan after AI setup
   const [aiPlan, setAiPlan] = useState<any>(null);
+  
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: 1,
+      sender: 'ai',
+      text: '안녕하세요! 프로젝트 기획을 도와드리겠습니다. 무엇을 도와드릴까요?',
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
 
-  // AI Help state - for section-specific AI assistance
-  const [aiHelpContent, setAiHelpContent] = useState<{ [key: string]: string }>({});
-  const [isAiHelping, setIsAiHelping] = useState<{ [key: string]: boolean }>({});
-  
-  const [chatMessages, setChatMessages] = useState(() => {
-    const projectData = getProjectData();
-    return [
+  // selectedItem이 변경될 때마다 AI 어시스턴트 메시지 초기화
+  useEffect(() => {
+    const getSectionMessage = (itemId: string) => {
+      const messages: Record<string, string> = {
+        'schedule': '안녕하세요! 프로젝트 일정을 함께 계획해볼까요? 원하는 일정 구조나 마일스톤을 말씀해주세요.',
+        'task-management': '작업 관리를 도와드리겠습니다. 어떤 작업을 추가하거나 관리하고 싶으신가요?',
+        'ai-plan': 'AI 기반 프로젝트 계획을 생성해드립니다. 프로젝트에 대해 자유롭게 설명해주세요.',
+        'motivation': '프로젝트 동기 작성을 도와드립니다. 이 프로젝트를 시작하게 된 계기나 해결하고 싶은 문제를 말씀해주세요.',
+        'goals': '프로젝트 목표 설정을 도와드립니다. 달성하고자 하는 구체적인 목표를 말씀해주세요.',
+        'requirements': '요구사항 정의를 도와드립니다. 기능적/비기능적 요구사항을 함께 정리해볼까요?',
+        'erd': 'ERD(Entity Relationship Diagram) 작성을 도와드립니다. 필요한 데이터 구조를 설명해주세요.',
+        'usecase': '유즈케이스 작성을 도와드립니다. 사용자 시나리오를 함께 정리해볼까요?',
+        'sequence-diagram': '시퀀스 다이어그램 작성을 도와드립니다. 어떤 프로세스를 다이어그램으로 만들고 싶으신가요?',
+        'architecture': '시스템 아키텍처 설계를 도와드립니다. 원하는 아키텍처 구조를 말씀해주세요.',
+        'information-architecture': '정보 구조도 작성을 도와드립니다. 사이트맵이나 정보 계층을 함께 설계해볼까요?',
+        'code-review': '코드 리뷰를 도와드립니다. 리뷰받고 싶은 코드를 공유해주세요.',
+        'team-members': '팀원 관리를 도와드립니다. 팀 구성이나 역할 분담에 대해 조언해드릴 수 있습니다.',
+        'project-info': '프로젝트 정보 관리를 도와드립니다. 수정하거나 개선할 부분을 말씀해주세요.',
+        'tech-stack': '기술 스택 선정을 도와드립니다. 프로젝트에 적합한 기술을 함께 고민해볼까요?'
+      };
+
+      return messages[itemId] || '안녕하세요! 이 섹션에서 무엇을 도와드릴까요?';
+    };
+
+    setChatMessages([
       {
         id: 1,
         sender: 'ai',
-        text: `안녕하세요! "${projectData.name}" 프로젝트를 함께 진행하게 되어 기쁩니다! 🎉\n\n현재 ${projectData.aiAssisted ? 'AI 지원이 활성화되어 있어 더욱 효과적으로 도와드릴 수 있습니다' : '프로젝트가 시작되었습니다'}. 무엇을 도와드릴까요?`,
+        text: getSectionMessage(selectedItem),
         timestamp: new Date()
       }
-    ];
-  });
-  const [inputMessage, setInputMessage] = useState('');
-  const [isAiTyping, setIsAiTyping] = useState(false);
+    ]);
+  }, [selectedItem]);
 
-  // Schedule management state
-  const [schedules, setSchedules] = useState([
-    {
-      id: 1,
-      title: '프로젝트 기획 및 설계',
-      description: '프로젝트의 전반적인 기획과 설계를 진행합니다.',
-      startWeek: 1,
-      duration: 3,
-      color: 'blue',
-      icon: 'Lightbulb',
-      progress: 100,
-      assignees: [
-        { id: 1, name: '김철수', avatar: '👨‍💻' },
-        { id: 2, name: '이영희', avatar: '👩‍💻' }
-      ],
-      status: 'completed',
-      notes: '기획 및 설계 완료. 모든 문서 작성 완료.'
-    },
-    {
-      id: 2,
-      title: '기본 UI 및 기능 개발',
-      description: '기본적인 UI 컴포넌트와 핵심 기능을 개발합니다.',
-      startWeek: 3,
-      duration: 4,
-      color: 'purple',
-      icon: 'Code',
-      progress: 60,
-      assignees: [
-        { id: 1, name: '김철수', avatar: '👨‍💻' }
-      ],
-      status: 'in-progress',
-      notes: '현재 UI 컴포넌트 개발 중. 약 60% 진행.'
-    },
-    {
-      id: 3,
-      title: '핵심 기능 구현',
-      description: '백엔드 API와 핵심 비즈니스 로직을 구현합니다.',
-      startWeek: 6,
-      duration: 3,
-      color: 'green',
-      icon: 'Wrench',
-      progress: 30,
-      assignees: [
-        { id: 2, name: '이영희', avatar: '👩‍💻' }
-      ],
-      status: 'in-progress',
-      notes: 'API 설계 완료. 구현 시작.'
-    },
-    {
-      id: 4,
-      title: '테스트 및 배포',
-      description: '전체 시스템 테스트 및 프로덕션 배포를 진행합니다.',
-      startWeek: 8,
-      duration: 2,
-      color: 'orange',
-      icon: 'TestTube',
-      progress: 0,
-      assignees: [],
-      status: 'pending',
-      notes: ''
-    }
-  ]);
+  // Schedule management state (AI 생성 시 채워짐)
+  const [schedules, setSchedules] = useState<Array<{
+    id: number;
+    title: string;
+    description: string;
+    startWeek: number;
+    duration: number;
+    color: string;
+    icon: string;
+    progress: number;
+    assignees: Array<{ id: number; name: string; avatar: string }>;
+    status: string;
+    notes: string;
+  }>>([]); // AI 생성 시 채워짐
+
+  // Tasks state (세부 작업 - scheduleId로 일정과 연결, AI 생성 시 채워짐)
+  const [tasks, setTasks] = useState<Array<{
+    id: number;
+    scheduleId: number;
+    title: string;
+    description: string;
+    completed: boolean;
+    priority: 'high' | 'medium' | 'low';
+  }>>([]); // AI 생성 시 채워짐
+
+  // 색상 매핑 (inline style용 hex 코드)
+  const getColorHex = (color: string) => {
+    const colorMap: Record<string, string> = {
+      blue: '#3b82f6',
+      purple: '#a855f7',
+      green: '#22c55e',
+      orange: '#f97316',
+      pink: '#ec4899',
+      cyan: '#06b6d4',
+      red: '#ef4444',
+      yellow: '#eab308',
+    };
+    return colorMap[color] || '#6b7280';
+  };
+
+  // 일정별 진행도 계산 함수
+  const calculateScheduleProgress = (scheduleId: number) => {
+    const scheduleTasks = tasks.filter(t => t.scheduleId === scheduleId);
+    if (scheduleTasks.length === 0) return 0;
+    const completedTasks = scheduleTasks.filter(t => t.completed).length;
+    return Math.round((completedTasks / scheduleTasks.length) * 100);
+  };
 
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
+
+  // AI Assist Modal states
   const [aiAssistModal, setAiAssistModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -214,7 +253,8 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     title: '',
     itemId: ''
   });
-    // Document content states
+  
+  // Document content states
   const [documentContents, setDocumentContents] = useState<Record<string, string>>({
     motivation: '',
     goals: '',
@@ -326,53 +366,65 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
-    const userMessage = {
+    const newMessage = {
       id: chatMessages.length + 1,
       sender: 'user',
       text: inputMessage,
       timestamp: new Date()
     };
 
-    setChatMessages([...chatMessages, userMessage]);
-    const messageToSend = inputMessage;
+    setChatMessages([...chatMessages, newMessage]);
     setInputMessage('');
     setIsAiTyping(true);
 
     try {
-      // 현재 섹션 정보 가져오기
+      // 현재 카테고리와 섹션 이름 찾기
       const currentCategory = categories.find(c => c.id === selectedCategory);
       const currentItem = currentCategory?.items.find(i => i.id === selectedItem);
 
-      // 컨텍스트 생성
-      const context = {
-        projectName: project.name,
-        projectDescription: project.description,
-        projectCategory: project.category,
-        difficulty: project.difficulty,
-        techStack: project.techStack,
-        currentCategory: selectedCategory,
-        currentSectionLabel: currentItem?.label || '알 수 없음',
-        aiPlan: aiPlan,
-        schedules: schedules
-      };
-
       // AI API 호출
-      const aiResponseText = await sendChatMessage(messageToSend, context);
+      const response = await fetch('http://localhost:5000/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: inputMessage,
+          context: {
+            projectName: project.name,
+            projectDescription: project.description,
+            projectCategory: project.category,
+            difficulty: project.difficulty,
+            techStack: project.techStack,
+            currentCategory: selectedCategory,
+            currentSection: selectedItem,
+            currentSectionLabel: currentItem?.label || selectedItem,
+            aiPlan: aiPlan,
+            schedules: schedules,
+            currentContent: documentContents[selectedItem] || ''
+          }
+        }),
+      });
 
-      const aiResponse = {
-        id: chatMessages.length + 2,
-        sender: 'ai',
-        text: aiResponseText,
-        timestamp: new Date()
-      };
+      const data = await response.json();
 
-      setChatMessages(prev => [...prev, aiResponse]);
+      if (data.success) {
+        const aiResponse = {
+          id: chatMessages.length + 2,
+          sender: 'ai',
+          text: data.response,
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, aiResponse]);
+      } else {
+        throw new Error(data.error || 'AI 응답 오류');
+      }
     } catch (error) {
       console.error('AI 채팅 오류:', error);
       const errorMessage = {
         id: chatMessages.length + 2,
         sender: 'ai',
-        text: '죄송합니다. 응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.',
+        text: '죄송합니다. AI 응답 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, errorMessage]);
@@ -381,49 +433,15 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     }
   };
 
-  // AI 도움 요청 함수
-  const handleAiHelp = async (sectionId: string, customRequest?: string) => {
-    setIsAiHelping({ ...isAiHelping, [sectionId]: true });
-
-    try {
-      const context = `프로젝트명: ${project.name}\n설명: ${project.description}\n카테고리: ${project.category}`;
-      const response = await requestAiHelp(sectionId, context, customRequest);
-
-      setAiHelpContent({ ...aiHelpContent, [sectionId]: response });
-    } catch (error) {
-      console.error('AI 도움 요청 실패:', error);
-      alert(error instanceof Error ? error.message : 'AI 도움 요청에 실패했습니다.');
-    } finally {
-      setIsAiHelping({ ...isAiHelping, [sectionId]: false });
-    }
-  };
-
   const renderContent = () => {
     const currentCategory = categories.find(c => c.id === selectedCategory);
     const currentItem = currentCategory?.items.find(i => i.id === selectedItem);
 
-    if (!currentItem) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full py-20">
-          <Lightbulb className="w-16 h-16 text-gray-300 mb-4" />
-          <h3 className="text-lg text-gray-400 mb-2">항목을 선택하세요</h3>
-          <p className="text-sm text-gray-500">왼쪽 메뉴에서 작업할 항목을 선택해주세요.</p>
-        </div>
-      );
-    }
+    if (!currentItem) return null;
 
     // Render different content based on selected item
     switch (selectedItem) {
       case 'ai-plan':
-        if (isGeneratingPlan) {
-          return (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-              <h3 className="text-lg text-gray-900 mb-2">AI가 프로젝트 계획을 생성하고 있습니다...</h3>
-              <p className="text-sm text-gray-600">잠시만 기다려주세요.</p>
-            </div>
-          );
-        }
         return <AiPlanView aiPlan={aiPlan} />;
       
       case 'motivation':
@@ -432,46 +450,24 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg text-gray-900 mb-2">프로젝트 동기</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-4">
                   이 프로젝트를 시작하게 된 배경과 동기를 작성하세요.
                 </p>
               </div>
               <button
-                onClick={() => handleAiHelp('motivation')}
-                disabled={isAiHelping['motivation']}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                onClick={() => setAiAssistModal({ isOpen: true, title: '프로젝트 동기', itemId: 'motivation' })}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all inline-flex items-center gap-2"
               >
-                {isAiHelping['motivation'] ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    AI 생성 중...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    AI 도움 요청
-                  </>
-                )}
+                <Sparkles className="w-4 h-4" />
+                AI 자동 생성
               </button>
             </div>
-
-            {aiHelpContent['motivation'] && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm text-purple-900 mb-2">AI 제안</h4>
-                    <p className="text-sm text-purple-800 whitespace-pre-wrap">{aiHelpContent['motivation']}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <textarea
                 className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="프로젝트를 시작하게 된 동기, 해결하고자 하는 문제, 프로젝트의 필요성 등을 자유롭게 작성해주세요..."
-                defaultValue={aiHelpContent['motivation'] || ''}
+                value={documentContents.motivation}
+                onChange={(e) => setDocumentContents({ ...documentContents, motivation: e.target.value })}
               />
             </div>
           </div>
@@ -483,57 +479,27 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg text-gray-900 mb-2">프로젝트 목표</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-4">
                   구체적이고 측정 가능한 프로젝트 목표를 설정하세요.
                 </p>
               </div>
-              <button
-                onClick={() => handleAiHelp('goals')}
-                disabled={isAiHelping['goals']}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isAiHelping['goals'] ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    AI 생성 중...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    AI 도움 요청
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAiAssistModal({ isOpen: true, title: '프로젝트 목표', itemId: 'goals' })}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all inline-flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  AI 자동 생성
+                </button>
+              </div>
             </div>
-
-            {aiHelpContent['goals'] && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm text-purple-900 mb-2">AI 제안</h4>
-                    <p className="text-sm text-purple-800 whitespace-pre-wrap">{aiHelpContent['goals']}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <label className="block text-sm text-gray-700 mb-2">주요 목표</label>
-                <input
-                  type="text"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="예: 100명 이상의 동시 접속 지원"
-                />
-              </div>
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <label className="block text-sm text-gray-700 mb-2">성공 지표</label>
-                <textarea
-                  className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="프로젝트 성공을 측정할 수 있는 지표를 작성하세요..."
-                />
-              </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <textarea
+                className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="프로젝트 목표와 성공 지표를 작성하세요..."
+                value={documentContents.goals}
+                onChange={(e) => setDocumentContents({ ...documentContents, goals: e.target.value })}
+              />
             </div>
           </div>
         );
@@ -544,81 +510,27 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg text-gray-900 mb-2">요구사항 정의</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-4">
                   기능적 요구사항과 비기능적 요구사항을 명세하세요.
                 </p>
               </div>
-              <button
-                onClick={() => handleAiHelp('requirements')}
-                disabled={isAiHelping['requirements']}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isAiHelping['requirements'] ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    AI 생성 중...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    AI 도움 요청
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAiAssistModal({ isOpen: true, title: '요구사항 정의', itemId: 'requirements' })}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all inline-flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  AI 자동 생성
+                </button>
+              </div>
             </div>
-
-            {aiHelpContent['requirements'] && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm text-purple-900 mb-2">AI 제안</h4>
-                    <p className="text-sm text-purple-800 whitespace-pre-wrap">{aiHelpContent['requirements']}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <h4 className="text-sm text-gray-900 mb-3">기능적 요구사항</h4>
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        className="w-full bg-transparent border-none focus:outline-none text-sm"
-                        placeholder="요구사항을 입력하세요..."
-                      />
-                    </div>
-                  </div>
-                </div>
-                <button className="text-sm text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
-                  <Plus className="w-4 h-4" />
-                  요구사항 추가
-                </button>
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <h4 className="text-sm text-gray-900 mb-3">비기능적 요구사항</h4>
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        className="w-full bg-transparent border-none focus:outline-none text-sm"
-                        placeholder="성능, 보안, 확장성 등의 요구사항..."
-                      />
-                    </div>
-                  </div>
-                </div>
-                <button className="text-sm text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
-                  <Plus className="w-4 h-4" />
-                  요구사항 추가
-                </button>
-              </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <textarea
+                className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="기능적 요구사항과 비기능적 요구사항을 작성하세요..."
+                value={documentContents.requirements}
+                onChange={(e) => setDocumentContents({ ...documentContents, requirements: e.target.value })}
+              />
             </div>
           </div>
         );
@@ -640,7 +552,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {project.teamMembers.map((member: any) => (
+              {project.teamMembers.map((member) => (
                 <div key={member.id} className="bg-white border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-2xl">
@@ -666,18 +578,21 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         );
 
       case 'schedule':
-        if (isGeneratingPlan) {
-          return (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-              <h3 className="text-lg text-gray-900 mb-2">AI가 프로젝트 일정을 생성하고 있습니다...</h3>
-              <p className="text-sm text-gray-600">잠시만 기다려주세요.</p>
-            </div>
-          );
-        }
+        // 작업 완료 기반으로 진행도 계산하여 전달
+        const schedulesWithProgress = schedules.map(schedule => ({
+          ...schedule,
+          progress: calculateScheduleProgress(schedule.id),
+          status: (() => {
+            const progress = calculateScheduleProgress(schedule.id);
+            if (progress === 100) return 'completed';
+            if (progress > 0) return 'in-progress';
+            return 'pending';
+          })()
+        }));
+
         return (
           <ScheduleTimeline
-            schedules={schedules}
+            schedules={schedulesWithProgress}
             onScheduleClick={(schedule) => {
               setSelectedSchedule(schedule);
               setIsScheduleModalOpen(true);
@@ -692,30 +607,138 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
               <div>
                 <h3 className="text-lg text-gray-900 mb-2">작업 관리</h3>
                 <p className="text-sm text-gray-600">
-                  프로젝트 작업을 단계별로 관리하세요.
+                  프로젝트 작업을 단계별로 관리하세요. 완료된 작업은 일정 진행도에 반영됩니다.
                 </p>
               </div>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                작업 추가
-              </button>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  전체 진행률: <span className="font-medium text-blue-600">
+                    {tasks.length > 0 ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0}%
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const newTask = {
+                      id: Date.now(),
+                      scheduleId: schedules[0]?.id || 0,
+                      title: '새 작업',
+                      description: '',
+                      completed: false,
+                      priority: 'medium' as const
+                    };
+                    setTasks([...tasks, newTask]);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  작업 추가
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
-              {['기획', '설계', '개발', '테스트'].map((category) => (
-                <div key={category} className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-sm text-gray-900 mb-3">{category}</h4>
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((task) => (
-                      <div key={task} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
-                        <Circle className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-900 flex-1">작업 항목 {task}</span>
-                        <span className="text-xs text-gray-500">담당자 미정</span>
+              {schedules.map((schedule) => {
+                const scheduleTasks = tasks.filter(t => t.scheduleId === schedule.id);
+                const completedCount = scheduleTasks.filter(t => t.completed).length;
+                const progress = scheduleTasks.length > 0
+                  ? Math.round((completedCount / scheduleTasks.length) * 100)
+                  : 0;
+
+                return (
+                  <div key={schedule.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getColorHex(schedule.color) }}></div>
+                        <h4 className="text-sm font-medium text-gray-900">{schedule.title}</h4>
+                        <span className="text-xs text-gray-500">({schedule.description})</span>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full transition-all duration-300"
+                            style={{ width: `${progress}%`, backgroundColor: getColorHex(schedule.color) }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-gray-600 w-12">{progress}%</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {scheduleTasks.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">이 일정에 작업이 없습니다.</p>
+                      ) : (
+                        scheduleTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                              task.completed
+                                ? 'bg-green-50 border border-green-200'
+                                : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                            }`}
+                            onClick={() => {
+                              setTasks(tasks.map(t =>
+                                t.id === task.id ? { ...t, completed: !t.completed } : t
+                              ));
+                            }}
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            ) : (
+                              <Circle className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-sm block truncate ${
+                                task.completed ? 'text-gray-500 line-through' : 'text-gray-900'
+                              }`}>
+                                {task.title}
+                              </span>
+                              {task.description && (
+                                <span className="text-xs text-gray-500 truncate block">{task.description}</span>
+                              )}
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${
+                              task.priority === 'high'
+                                ? 'bg-red-100 text-red-700'
+                                : task.priority === 'medium'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '중간' : '낮음'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTasks(tasks.filter(t => t.id !== task.id));
+                              }}
+                              className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newTask = {
+                          id: Date.now(),
+                          scheduleId: schedule.id,
+                          title: '새 작업',
+                          description: '',
+                          completed: false,
+                          priority: 'medium' as const
+                        };
+                        setTasks([...tasks, newTask]);
+                      }}
+                      className="mt-3 w-full py-2 text-sm text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      이 일정에 작업 추가
+                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
@@ -870,7 +893,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                         <Users className="w-4 h-4" />
                         팀원 모집 중
                       </div>
-                      <p className="text-xs text-gray-500 ml-6">다른 개발자들이 프로젝트에 참여할 수 있습니다</p>
+                      <p className="text-xs text-gray-500 ml-6">다른 개발자들이 프로젝트에 참���할 수 있습니다</p>
                     </div>
                   </label>
                 </div>
@@ -930,7 +953,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                   <h4 className="text-sm text-gray-900 mb-3">현재 기술 스택</h4>
                   <div className="flex flex-wrap gap-2">
                     {project.techStack.length > 0 ? (
-                      project.techStack.map((tech: string, index: number) => (
+                      project.techStack.map((tech, index) => (
                         <div
                           key={index}
                           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200"
@@ -938,7 +961,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                           <span className="text-sm">{tech}</span>
                           <button
                             onClick={() => {
-                              const newTechStack = project.techStack.filter((_: string, i: number) => i !== index);
+                              const newTechStack = project.techStack.filter((_, i) => i !== index);
                               setProject({ ...project, techStack: newTechStack });
                             }}
                             className="text-blue-700 hover:text-red-600 transition-colors"
@@ -1021,50 +1044,26 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg text-gray-900 mb-2">{currentItem.label}</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-4">
                   이 섹션의 내용을 작성하세요.
                 </p>
               </div>
-              {/* ERD, 시퀀스 다이어그램 등 특정 섹션에만 AI 도움 제공 */}
-              {(selectedItem === 'erd' || selectedItem === 'usecase' || selectedItem === 'sequence-diagram' ||
-                selectedItem === 'architecture' || selectedItem === 'information-architecture') && (
+              <div className="flex gap-2">
                 <button
-                  onClick={() => handleAiHelp(selectedItem)}
-                  disabled={isAiHelping[selectedItem]}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  onClick={() => setAiAssistModal({ isOpen: true, title: currentItem.label, itemId: selectedItem })}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all inline-flex items-center gap-2"
                 >
-                  {isAiHelping[selectedItem] ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      AI 생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      AI 도움 요청
-                    </>
-                  )}
+                  <Sparkles className="w-4 h-4" />
+                  AI 자동 생성
                 </button>
-              )}
-            </div>
-
-            {aiHelpContent[selectedItem] && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm text-purple-900 mb-2">AI 제안</h4>
-                    <p className="text-sm text-purple-800 whitespace-pre-wrap">{aiHelpContent[selectedItem]}</p>
-                  </div>
-                </div>
               </div>
-            )}
-
+            </div>
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <textarea
                 className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="내용을 입력하세요..."
-                defaultValue={aiHelpContent[selectedItem] || ''}
+                value={documentContents[selectedItem] || ''}
+                onChange={(e) => setDocumentContents({ ...documentContents, [selectedItem]: e.target.value })}
               />
             </div>
           </div>
@@ -1077,104 +1076,215 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     return (
       <AiProjectSetup
         projectName={project.name}
-        projectInfo={project}
+        projectInfo={{
+          description: project.description,
+          category: project.category,
+          difficulty: project.difficulty,
+          techStack: project.techStack,
+          duration: project.duration,
+          teamSize: project.teamSize
+        }}
         onComplete={async (data, mode) => {
           console.log('AI Setup completed:', { data, mode });
 
-          setIsGeneratingPlan(true);
+          // 먼저 설정 화면 닫고 로딩 화면 표시
           setShowAiSetup(false);
+          setIsGeneratingPlan(true);
+          setAiSetupData(data);
+          setAiSetupMode(mode);
 
           try {
-            // Call AI API to generate project plan
-            const plan = await generateProjectPlan({
-              mode,
-              data
+            // AI API 호출하여 계획 생성
+            const response = await fetch('http://localhost:5000/api/ai/generate-plan', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                mode,
+                data,
+                projectInfo: {
+                  name: project.name,
+                  description: project.description,
+                  category: project.category,
+                  difficulty: project.difficulty,
+                  techStack: project.techStack,
+                  duration: project.duration,
+                  teamSize: project.teamSize,
+                  isPublic: project.isPublic
+                }
+              }),
             });
 
-            // Store the generated plan with mode and user data
-            setAiPlan({
-              ...plan,
-              ...data,
-              mode
-            });
-            setAiSetupData(data);
-            setAiSetupMode(mode);
+            const result = await response.json();
 
-            // AI 계획을 워크스페이스 일정/작업으로 변환
-            if (plan.roadmap && plan.roadmap.length > 0) {
-              let cumulativeWeeks = 1;
-              const newSchedules = plan.roadmap.map((phase: any, index: number) => {
-                // duration에서 숫자 추출 (예: "2주" -> 2, "2-3주" -> 2)
-                const durationMatch = phase.duration?.match(/(\d+)/);
-                const weeks = durationMatch ? parseInt(durationMatch[1]) : 2;
-
-                // tasks 상세 정보 생성
-                let description = '';
-                if (phase.tasks && phase.tasks.length > 0) {
-                  if (typeof phase.tasks[0] === 'string') {
-                    description = phase.tasks.join('\n• ');
-                  } else {
-                    description = phase.tasks.map((t: any) => `${t.title}: ${t.description || ''}`).join('\n• ');
-                  }
-                }
-
-                // 마일스톤 추가
-                if (phase.milestones && phase.milestones.length > 0) {
-                  description += '\n\n🎯 마일스톤:\n• ' + phase.milestones.join('\n• ');
-                }
-
-                const schedule = {
-                  id: Date.now() + index,
-                  title: phase.phase,
-                  description: description || `${phase.phase}의 세부 작업을 진행합니다.`,
-                  startWeek: cumulativeWeeks,
-                  duration: weeks,
-                  color: ['blue', 'purple', 'green', 'orange', 'red'][index % 5],
-                  icon: ['Lightbulb', 'Code', 'TestTube', 'Wrench', 'CheckCircle2'][index % 5],
-                  progress: index === 0 ? 10 : 0,
-                  assignees: project.teamMembers || [],
-                  status: index === 0 ? 'in-progress' : 'pending',
-                  notes: `AI가 생성한 일정입니다. 필요에 따라 수정하세요.`,
-                  milestones: phase.milestones || []
-                };
-
-                cumulativeWeeks += weeks;
-                return schedule;
+            if (result.success && result.plan) {
+              // API 응답으로 받은 계획 저장
+              setAiPlan({
+                ...result.plan,
+                mode,
+                inputData: data
               });
 
-              setSchedules(newSchedules);
+              // 일정과 작업을 분리해서 저장
+              if (result.plan.schedule && result.plan.schedule.length > 0) {
+                const baseScheduleId = Date.now();
+                const baseTaskId = Date.now() + 1000;
 
-              // 일정 관리 탭으로 이동 (사용자가 바로 시작할 수 있도록)
-              setSelectedCategory('tasks');
-              setSelectedItem('schedule');
+                // 일정 생성 (대략적인 기간만)
+                let cumulativeWeek = 1;
+                const newSchedules = result.plan.schedule.map((s: any, index: number) => {
+                  const startWeek = cumulativeWeek;
+                  const duration = s.duration || 1;
+                  cumulativeWeek += duration;
+
+                  return {
+                    id: baseScheduleId + index,
+                    title: s.title || s.goal || `${s.phase || s.week}`,
+                    description: s.goal || `${s.phase || index + 1}주차 일정`,
+                    startWeek,
+                    duration,
+                    color: ['blue', 'purple', 'green', 'orange', 'pink', 'cyan'][index % 6],
+                    icon: 'Calendar',
+                    progress: 0,
+                    assignees: [],
+                    status: 'pending' as const,
+                    notes: ''
+                  };
+                });
+
+                // 세부 작업 생성 (각 일정에 연결)
+                const newTasks: Array<{
+                  id: number;
+                  scheduleId: number;
+                  title: string;
+                  description: string;
+                  completed: boolean;
+                  priority: 'high' | 'medium' | 'low';
+                }> = [];
+                let taskIdCounter = 0;
+
+                result.plan.schedule.forEach((s: any, scheduleIndex: number) => {
+                  if (s.tasks && Array.isArray(s.tasks)) {
+                    s.tasks.forEach((taskTitle: string) => {
+                      newTasks.push({
+                        id: baseTaskId + taskIdCounter,
+                        scheduleId: baseScheduleId + scheduleIndex,
+                        title: taskTitle,
+                        description: '',
+                        completed: false,
+                        priority: taskIdCounter < 3 ? 'high' : 'medium'
+                      });
+                      taskIdCounter++;
+                    });
+                  }
+                });
+
+                // roadmap에서도 작업 추출
+                if (result.plan.roadmap && Array.isArray(result.plan.roadmap)) {
+                  result.plan.roadmap.forEach((phase: any, phaseIndex: number) => {
+                    if (phase.tasks && Array.isArray(phase.tasks)) {
+                      phase.tasks.forEach((task: any) => {
+                        // 해당 phase에 맞는 schedule 찾기
+                        const matchingScheduleIndex = Math.min(phaseIndex, newSchedules.length - 1);
+                        newTasks.push({
+                          id: baseTaskId + taskIdCounter,
+                          scheduleId: baseScheduleId + matchingScheduleIndex,
+                          title: typeof task === 'string' ? task : task.title,
+                          description: typeof task === 'object' ? task.description || '' : '',
+                          completed: false,
+                          priority: task.priority === 'high' ? 'high' : 'medium'
+                        });
+                        taskIdCounter++;
+                      });
+                    }
+                  });
+                }
+
+                // 기존 데이터 대체 (중복 방지)
+                setSchedules(newSchedules);
+                setTasks(newTasks);
+              }
             } else {
-              // roadmap이 없으면 AI 계획 탭으로 이동
-              setSelectedCategory('planning');
-              setSelectedItem('ai-plan');
+              // API 실패 시 기본 데이터로 설정
+              if (mode === 'guided') {
+                setAiPlan({
+                  description: data.description,
+                  targetUsers: data.targetUsers,
+                  projectGoal: data.projectGoal,
+                  languages: data.languages || [],
+                  frameworks: data.frameworks || [],
+                  coreFeatures: data.coreFeatures.filter((f: string) => f.trim() !== ''),
+                  mode: 'guided'
+                });
+              } else {
+                setAiPlan({
+                  freeInput: data.freeInput,
+                  mode: 'scratch'
+                });
+              }
             }
           } catch (error) {
-            console.error('AI 계획 생성 실패:', error);
-            alert(error instanceof Error ? error.message : 'AI 계획 생성에 실패했습니다.');
-            // Revert to setup screen on error
-            setShowAiSetup(true);
+            console.error('AI 계획 생성 오류:', error);
+            // 오류 시 기본 데이터로 설정
+            if (mode === 'guided') {
+              setAiPlan({
+                description: data.description,
+                targetUsers: data.targetUsers,
+                projectGoal: data.projectGoal,
+                languages: data.languages || [],
+                frameworks: data.frameworks || [],
+                coreFeatures: data.coreFeatures.filter((f: string) => f.trim() !== ''),
+                mode: 'guided'
+              });
+            } else {
+              setAiPlan({
+                freeInput: data.freeInput,
+                mode: 'scratch'
+              });
+            }
           } finally {
+            // 로딩 종료 및 AI 계획 화면으로 이동
+            setSelectedCategory('planning');
+            setSelectedItem('ai-plan');
             setIsGeneratingPlan(false);
           }
         }}
-        onBack={() => navigate('/projects')}
+        onBack={() => navigate(-1)}
       />
     );
   }
 
+  // AI 계획 생성 중 로딩 화면
+  if (isGeneratingPlan) {
+    return (
+      <div className="h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative mb-6">
+            <div className="w-20 h-20 border-4 border-blue-200 rounded-full animate-pulse"></div>
+            <Sparkles className="w-10 h-10 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-bounce" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">AI가 프로젝트 계획을 생성하고 있습니다</h2>
+          <p className="text-gray-600 mb-4">잠시만 기다려주세요...</p>
+          <div className="flex justify-center gap-1">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => window.location.hash = '#projects'}
+                onClick={() => navigate(-1)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -1222,7 +1332,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
               </button>
               <div className="w-px h-6 bg-gray-300"></div>
               <button
-                onClick={() => window.location.hash = '#mypage'}
+                onClick={() => navigate('/mypage')}
                 className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center hover:shadow-lg transition-all"
                 title="마이페이지"
               >
@@ -1340,44 +1450,31 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
           </div>
         </div>
 
-        {/* 모바일 오버레이 */}
-        {showAiChat && (
-          <div
-            className="fixed inset-0 bg-black/50 z-20 md:hidden transition-opacity duration-300"
-            onClick={() => setShowAiChat(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* AI Chat Sidebar - 반응형 */}
+        {/* AI Chat Sidebar */}
         <div
           className={`
-            ${showAiChat ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
-            ${showAiChat ? 'w-full md:w-96' : 'w-0'}
-            fixed md:relative
-            right-0 top-0 h-full
-            z-30 md:z-auto
+            ${showAiChat ? 'w-96' : 'w-0'}
             bg-white border-l border-gray-200
             flex flex-col
             transition-all duration-300 ease-in-out
-            shadow-2xl md:shadow-none
-            ${!showAiChat && 'md:hidden'}
+            overflow-hidden
+            h-full
           `}
         >
           {showAiChat && (
-            <>
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-sm text-gray-900">AI 어시스턴트</h3>
-                </div>
-                <button
-                  onClick={() => setShowAiChat(false)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-600" />
-                </button>
+            <div className="flex flex-col h-full">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-500 to-purple-500">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-white" />
+                <h3 className="text-sm text-white font-medium">AI 어시스턴트</h3>
               </div>
+              <button
+                onClick={() => setShowAiChat(false)}
+                className="p-1 hover:bg-white/20 rounded transition-colors"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
               {chatMessages.map((message) => (
@@ -1385,18 +1482,14 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                   key={message.id}
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`
-                      max-w-[85%] rounded-2xl px-4 py-3 shadow-sm
-                      ${message.sender === 'user'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
-                        : 'bg-white text-gray-900 border border-gray-200'
-                      }
-                    `}
-                  >
+                  <div className={`max-w-[85%] ${
+                    message.sender === 'user'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
+                      : 'bg-white text-gray-900 border border-gray-200'
+                  } rounded-2xl px-4 py-3 shadow-sm`}>
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.text}</p>
                     {message.sender === 'ai' && message.id !== 1 && documentContents.hasOwnProperty(selectedItem) && (
-                      <div className="mt-3 flex gap-2 pt-2 border-t border-gray-100">
+                      <div className="mt-3 flex gap-2 pt-2 border-t border-gray-200">
                         <button
                           onClick={() => {
                             // 덮어쓰기: Replace current document content
@@ -1405,7 +1498,6 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                 ...documentContents,
                                 [selectedItem]: message.text
                               });
-                              // Show success feedback
                               const successMsg = {
                                 id: chatMessages.length + 1,
                                 sender: 'ai',
@@ -1439,7 +1531,6 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                                 ...documentContents,
                                 [selectedItem]: newContent
                               });
-                              // Show success feedback
                               const successMsg = {
                                 id: chatMessages.length + 1,
                                 sender: 'ai',
@@ -1511,12 +1602,12 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                 </button>
               </div>
             </div>
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Floating AI Button - 모바일 & 닫혔을 때만 표시 */}
+      {/* Floating AI Button */}
       {!showAiChat && (
         <button
           onClick={() => setShowAiChat(true)}
@@ -1557,6 +1648,20 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
           setSchedules(schedules.filter(s => s.id !== id));
         }}
         teamMembers={project.teamMembers}
+      />
+
+      {/* AI Assist Modal */}
+      <AiAssistModal
+        isOpen={aiAssistModal.isOpen}
+        onClose={() => setAiAssistModal({ isOpen: false, title: '', itemId: '' })}
+        title={aiAssistModal.title}
+        userContent={documentContents[aiAssistModal.itemId] || ''}
+        onApply={(content) => {
+          setDocumentContents({
+            ...documentContents,
+            [aiAssistModal.itemId]: content
+          });
+        }}
       />
     </div>
   );

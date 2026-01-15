@@ -317,7 +317,10 @@ export default function ProjectsPage() {
     };
     localStorage.setItem(`project_${projectId}`, JSON.stringify(projectWithId));
 
-    navigate(`/workspace/${projectId}?aiAssisted=${projectData.aiAssisted}`);
+    // navigate에 state로 프로젝트 데이터 전달
+    navigate(`/workspace/${projectId}${projectData.aiAssisted ? '?setup=true' : ''}`, {
+      state: { project: projectWithId }
+    });
   };
 
   return (

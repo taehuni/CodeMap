@@ -11,12 +11,25 @@ const groq = new Groq({
 // AI 프로젝트 계획 생성
 router.post('/generate-plan', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mode, data } = req.body;
+    const { mode, data, projectInfo } = req.body;
 
     if (!process.env.GROQ_API_KEY) {
       res.status(500).json({ error: 'Groq API 키가 설정되지 않았습니다.' });
       return;
     }
+
+    // 프로젝트 기본 정보 문자열 생성
+    const projectInfoStr = projectInfo ? `
+프로젝트 기본 정보 (프로젝트 생성 시 입력됨):
+- 프로젝트명: ${projectInfo.name || '미정'}
+- 프로젝트 설명 (공개용): ${projectInfo.description || '없음'}
+- 카테고리: ${projectInfo.category || '미정'}
+- 난이도: ${projectInfo.difficulty || '미정'}
+- 기술 스택: ${projectInfo.techStack?.join(', ') || '미정'}
+- 예상 기간: ${projectInfo.duration || '미정'}
+- 팀 규모: ${projectInfo.teamSize || '1'}명
+- 공개 여부: ${projectInfo.isPublic ? '공개' : '비공개'}
+` : '';
 
     let prompt = '';
 
@@ -25,9 +38,15 @@ router.post('/generate-plan', async (req: Request, res: Response): Promise<void>
       prompt = `당신은 소프트웨어 프로젝트 기획 전문가입니다. 사용자의 아이디어를 바탕으로 완전한 프로젝트 계획을 생성해주세요.
 
 중요: 반드시 유효한 JSON만 응답해야 합니다. 설명, 인사말 또는 JSON 외의 다른 텍스트를 포함하지 마세요.
-
-사용자 아이디어:
+${projectInfoStr}
+사용자가 AI에게 직접 작성한 프로젝트 아이디어:
 ${data.freeInput}
+
+프로젝트 진행 시 반드시 작성해야 하는 문서들 (일정에 포함해야 함):
+- 기획 단계: 프로젝트 동기, 프로젝트 목표, 요구사항 정의, 정보구조도, 스토리보드
+- 설계 단계: ERD, 유즈케이스, 시퀀스 다이어그램, 시스템 아키텍처
+- 개발 단계: 코드 작성, 코드 리뷰
+- 테스트 단계: 테스트 케이스 작성, 버그 수정, 배포
 
 다음 JSON 구조로 응답하세요 (추가 텍스트 없이):
 {
@@ -44,18 +63,34 @@ ${data.freeInput}
       "priority": "high"
     }
   ],
-  "roadmap": [
+  "schedule": [
     {
-      "phase": "1단계: 단계명",
-      "duration": "2주",
-      "tasks": [
-        {
-          "title": "작업 제목",
-          "description": "상세 설명",
-          "status": "pending"
-        }
-      ],
-      "milestones": ["마일스톤1", "마일스톤2"]
+      "phase": "기획",
+      "title": "기획 및 요구사항 분석",
+      "duration": 2,
+      "tasks": ["프로젝트 동기 작성", "프로젝트 목표 설정", "요구사항 정의", "정보구조도 작성"],
+      "goal": "프로젝트의 방향성과 요구사항을 명확히 정의"
+    },
+    {
+      "phase": "설계",
+      "title": "시스템 설계",
+      "duration": 2,
+      "tasks": ["ERD 설계", "유즈케이스 작성", "시퀀스 다이어그램 작성", "시스템 아키텍처 설계"],
+      "goal": "개발 전 시스템 구조를 상세히 설계"
+    },
+    {
+      "phase": "개발",
+      "title": "핵심 기능 개발",
+      "duration": 4,
+      "tasks": ["프론트엔드 UI 개발", "백엔드 API 개발", "데이터베이스 구축", "핵심 기능 구현"],
+      "goal": "핵심 기능 개발 완료"
+    },
+    {
+      "phase": "테스트",
+      "title": "테스트 및 배포",
+      "duration": 2,
+      "tasks": ["테스트 케이스 작성", "버그 수정", "코드 리뷰", "배포"],
+      "goal": "안정적인 서비스 배포"
     }
   ],
   "fileStructure": {
@@ -65,21 +100,15 @@ ${data.freeInput}
     "config": ["config/", ".env.example", "README.md"],
     "description": "전체 프로젝트 구조 설명"
   },
-  "schedule": [
-    {
-      "week": "1주차",
-      "tasks": ["세부 작업1", "세부 작업2"],
-      "goal": "목표"
-    }
-  ],
   "recommendations": ["추천사항1", "추천사항2"]
 }
 
 중요 규칙:
 1. JSON 객체만 출력하세요. {로 시작하고 }로 끝나야 합니다.
-2. 모든 내용은 순수 한국어로만 작성하세요. 영어, 한자, 일본어 등 다른 언어를 절대 사용하지 마세요.
-3. 기술 스택 이름(React, Node.js 등)은 영어 그대로 사용 가능하지만, 설명은 반드시 한국어로 작성하세요.
-4. 파일 구조는 프론트엔드, 백엔드, 데이터베이스를 모두 포함해야 합니다.`;
+2. 모든 내용은 순수 한국어로만 작성하세요.
+3. 기술 스택 이름(React, Node.js 등)은 영어 그대로 사용 가능합니다.
+4. schedule의 duration은 숫자(주 단위)로, 프로젝트 규모에 맞게 AI가 적절히 판단하세요.
+5. schedule의 tasks에는 위에 명시된 문서 작성 작업들을 반드시 포함하세요.`;
     } else if (mode === 'guided') {
       // 가이드 모드
       const languagesStr = data.languages.join(', ');
@@ -89,8 +118,8 @@ ${data.freeInput}
       prompt = `당신은 소프트웨어 프로젝트 기획 전문가입니다. 다음 정보를 바탕으로 프로젝트 계획을 생성해주세요.
 
 중요: 반드시 유효한 JSON만 응답해야 합니다. 설명, 인사말 또는 JSON 외의 다른 텍스트를 포함하지 마세요.
-
-프로젝트 정보:
+${projectInfoStr}
+AI 가이드 모드에서 사용자가 입력한 상세 정보:
 - 개발 환경: ${data.devEnvironment}
 - 프로그래밍 언어: ${languagesStr}
 - 프레임워크: ${frameworksStr}
@@ -101,6 +130,12 @@ ${data.freeInput}
 ${data.targetUsers ? `- 대상 사용자: ${data.targetUsers}` : ''}
 ${data.projectGoal ? `- 프로젝트 목표: ${data.projectGoal}` : ''}
 
+프로젝트 진행 시 반드시 작성해야 하는 문서들 (일정에 포함해야 함):
+- 기획 단계: 프로젝트 동기, 프로젝트 목표, 요구사항 정의, 정보구조도, 스토리보드
+- 설계 단계: ERD, 유즈케이스, 시퀀스 다이어그램, 시스템 아키텍처
+- 개발 단계: 코드 작성, 코드 리뷰
+- 테스트 단계: 테스트 케이스 작성, 버그 수정, 배포
+
 다음 JSON 구조로 응답하세요 (추가 텍스트 없이):
 {
   "techStack": {
@@ -116,18 +151,34 @@ ${data.projectGoal ? `- 프로젝트 목표: ${data.projectGoal}` : ''}
       "priority": "high"
     }
   ],
-  "roadmap": [
+  "schedule": [
     {
-      "phase": "1단계: 단계명",
-      "duration": "2주",
-      "tasks": [
-        {
-          "title": "작업 제목",
-          "description": "상세 설명",
-          "status": "pending"
-        }
-      ],
-      "milestones": ["마일스톤1", "마일스톤2"]
+      "phase": "기획",
+      "title": "기획 및 요구사항 분석",
+      "duration": 2,
+      "tasks": ["프로젝트 동기 작성", "프로젝트 목표 설정", "요구사항 정의", "정보구조도 작성"],
+      "goal": "프로젝트의 방향성과 요구사항을 명확히 정의"
+    },
+    {
+      "phase": "설계",
+      "title": "시스템 설계",
+      "duration": 2,
+      "tasks": ["ERD 설계", "유즈케이스 작성", "시퀀스 다이어그램 작성", "시스템 아키텍처 설계"],
+      "goal": "개발 전 시스템 구조를 상세히 설계"
+    },
+    {
+      "phase": "개발",
+      "title": "핵심 기능 개발",
+      "duration": 4,
+      "tasks": ["프론트엔드 UI 개발", "백엔드 API 개발", "데이터베이스 구축", "핵심 기능 구현"],
+      "goal": "핵심 기능 개발 완료"
+    },
+    {
+      "phase": "테스트",
+      "title": "테스트 및 배포",
+      "duration": 2,
+      "tasks": ["테스트 케이스 작성", "버그 수정", "코드 리뷰", "배포"],
+      "goal": "안정적인 서비스 배포"
     }
   ],
   "fileStructure": {
@@ -137,21 +188,15 @@ ${data.projectGoal ? `- 프로젝트 목표: ${data.projectGoal}` : ''}
     "config": ["config/", ".env.example", "README.md"],
     "description": "전체 프로젝트 구조 설명"
   },
-  "schedule": [
-    {
-      "week": "1주차",
-      "tasks": ["세부 작업1", "세부 작업2"],
-      "goal": "목표"
-    }
-  ],
   "recommendations": ["추천사항1", "추천사항2"]
 }
 
 중요 규칙:
 1. JSON 객체만 출력하세요. {로 시작하고 }로 끝나야 합니다.
-2. 모든 내용은 순수 한국어로만 작성하세요. 영어, 한자, 일본어 등 다른 언어를 절대 사용하지 마세요.
-3. 기술 스택 이름(React, Node.js 등)은 영어 그대로 사용 가능하지만, 설명은 반드시 한국어로 작성하세요.
-4. 파일 구조는 프론트엔드, 백엔드, 데이터베이스를 모두 포함해야 합니다.`;
+2. 모든 내용은 순수 한국어로만 작성하세요.
+3. 기술 스택 이름(React, Node.js 등)은 영어 그대로 사용 가능합니다.
+4. schedule의 duration은 숫자(주 단위)로, 프로젝트 규모에 맞게 AI가 적절히 판단하세요.
+5. schedule의 tasks에는 위에 명시된 문서 작성 작업들을 반드시 포함하세요.`;
     } else {
       res.status(400).json({ error: '잘못된 모드입니다.' });
       return;
@@ -207,6 +252,25 @@ ${data.projectGoal ? `- 프로젝트 목표: ${data.projectGoal}` : ''}
     }
 
     const plan = JSON.parse(cleanedText);
+
+    // 원본 입력 데이터를 plan에 포함
+    plan.userInput = {
+      mode,
+      freeInput: data.freeInput || null,
+      guidedData: mode === 'guided' ? {
+        devEnvironment: data.devEnvironment,
+        languages: data.languages,
+        frameworks: data.frameworks,
+        topic: data.topic,
+        description: data.description,
+        coreFeatures: data.coreFeatures,
+        targetUsers: data.targetUsers,
+        projectGoal: data.projectGoal
+      } : null
+    };
+
+    // 프로젝트 생성 모달 정보도 포함
+    plan.projectInfo = projectInfo || null;
 
     res.json({
       success: true,

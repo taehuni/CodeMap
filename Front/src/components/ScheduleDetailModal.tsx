@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Users, CheckCircle2, Edit2, Trash2, UserPlus, Plus, Circle, Check } from 'lucide-react';
+import { X, Calendar, Users, CheckCircle2, Edit2, Trash2, UserPlus, Plus, Circle, Check, Clock, AlertCircle } from 'lucide-react';
 
 interface ScheduleDetailModalProps {
   schedule: any;
@@ -8,6 +8,8 @@ interface ScheduleDetailModalProps {
   onUpdate: (schedule: any) => void;
   onDelete: (id: number) => void;
   teamMembers: any[];
+  tasks?: any[];
+  onAddTask?: () => void;
 }
 
 export default function ScheduleDetailModal({
@@ -16,7 +18,9 @@ export default function ScheduleDetailModal({
   onClose,
   onUpdate,
   onDelete,
-  teamMembers
+  teamMembers,
+  tasks,
+  onAddTask
 }: ScheduleDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedSchedule, setEditedSchedule] = useState(schedule);

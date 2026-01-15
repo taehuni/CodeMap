@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
 import { 
   ArrowLeft, 
   Sparkles, 
@@ -40,64 +39,38 @@ import {
   Trash2,
   X,
   User,
-  LogOut,
-  Replace,
-  FilePlus
+  LogOut
 } from 'lucide-react';
 import ScheduleDetailModal from '../components/ScheduleDetailModal';
 import ScheduleTimeline from '../components/ScheduleTimeline';
 import AiProjectSetup from '../components/AiProjectSetup';
 import AiPlanView from '../components/AiPlanView';
 import AiAssistModal from '../components/AiAssistModal';
+import AiSplitView from '../components/AiSplitView';
+import AddScheduleModal from '../components/AddScheduleModal';
 
 interface ProjectWorkspaceProps {
   projectId?: string;
 }
 
 export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-
-  // 프로젝트 생성 시 전달된 데이터 또는 기본값 사용
-  const getInitialProject = () => {
-    // location.state에서 프로젝트 데이터 확인
-    const stateProject = location.state?.project;
-    if (stateProject) {
-      return {
-        id: projectId || String(Date.now()),
-        name: stateProject.name || '',
-        description: stateProject.description || '',
-        category: stateProject.category || '',
-        difficulty: stateProject.difficulty || '',
-        duration: stateProject.duration || '',
-        techStack: stateProject.techStack || [],
-        teamMembers: stateProject.teamMembers || [],
-        teamSize: stateProject.teamSize || 1,
-        aiAssisted: stateProject.aiAssisted ?? true,
-        isRecruiting: stateProject.isRecruiting ?? false,
-        isPublic: stateProject.isPublic ?? true
-      };
-    }
-
-    // 기본값 (프로젝트 데이터가 전달되지 않은 경우)
-    return {
-      id: projectId || '1',
-      name: '새 프로젝트',
-      description: '',
-      category: '',
-      difficulty: '',
-      duration: '',
-      techStack: [],
-      teamMembers: [],
-      teamSize: 1,
-      aiAssisted: true,
-      isRecruiting: false,
-      isPublic: true
-    };
-  };
-
-  const [project, setProject] = useState(getInitialProject);
+  // Mock project data - in real app, fetch based on projectId
+  const [project, setProject] = useState({
+    id: projectId || '1',
+    name: '실시간 채팅 애플리케이션',
+    description: 'WebSocket을 활용한 실시간 채팅 서비스',
+    category: '웹 개발',
+    difficulty: '중급',
+    duration: '6주',
+    techStack: ['React', 'Node.js', 'Socket.io', 'MongoDB'],
+    teamMembers: [
+      { id: 1, role: '프론트엔드 개발자', name: '김철수', avatar: '👨‍💻' },
+      { id: 2, role: '백엔드 발자', name: '이영희', avatar: '👩‍💻' }
+    ],
+    aiAssisted: true,
+    isRecruiting: true,
+    isPublic: true
+  });
 
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [editedProject, setEditedProject] = useState(project);
@@ -108,25 +81,13 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
   const [showAiChat, setShowAiChat] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   
-  // AI Setup states - URL 파라미터와 연동
-  const showAiSetup = searchParams.get('setup') === 'true';
-
-  // showAiSetup 상태 변경 함수 (URL 업데이트)
-  const setShowAiSetup = useCallback((show: boolean) => {
-    if (show) {
-      setSearchParams({ setup: 'true' });
-    } else {
-      setSearchParams({});
-    }
-  }, [setSearchParams]);
-
-  // 초기 로드 시 aiAssisted 파라미터 체크
-  useEffect(() => {
-    const url = window.location.href;
-    if (url.includes('aiAssisted=true') && !showAiSetup) {
-      setSearchParams({ setup: 'true' });
-    }
-  }, []);
+  // AI Setup states
+  const [showAiSetup, setShowAiSetup] = useState(() => {
+    // URL에서 aiAssisted 파라미터 확인
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.split('?')[1] || hash.split('&').slice(1).join('&'));
+    return params.get('aiAssisted') === 'true';
+  });
   const [aiSetupMode, setAiSetupMode] = useState<'scratch' | 'guided' | null>(null);
   const [aiSetupData, setAiSetupData] = useState({
     // For 'scratch' mode
@@ -155,94 +116,90 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
 
-  // selectedItem이 변경될 때마다 AI 어시스턴트 메시지 초기화
-  useEffect(() => {
-    const getSectionMessage = (itemId: string) => {
-      const messages: Record<string, string> = {
-        'schedule': '안녕하세요! 프로젝트 일정을 함께 계획해볼까요? 원하는 일정 구조나 마일스톤을 말씀해주세요.',
-        'task-management': '작업 관리를 도와드리겠습니다. 어떤 작업을 추가하거나 관리하고 싶으신가요?',
-        'ai-plan': 'AI 기반 프로젝트 계획을 생성해드립니다. 프로젝트에 대해 자유롭게 설명해주세요.',
-        'motivation': '프로젝트 동기 작성을 도와드립니다. 이 프로젝트를 시작하게 된 계기나 해결하고 싶은 문제를 말씀해주세요.',
-        'goals': '프로젝트 목표 설정을 도와드립니다. 달성하고자 하는 구체적인 목표를 말씀해주세요.',
-        'requirements': '요구사항 정의를 도와드립니다. 기능적/비기능적 요구사항을 함께 정리해볼까요?',
-        'erd': 'ERD(Entity Relationship Diagram) 작성을 도와드립니다. 필요한 데이터 구조를 설명해주세요.',
-        'usecase': '유즈케이스 작성을 도와드립니다. 사용자 시나리오를 함께 정리해볼까요?',
-        'sequence-diagram': '시퀀스 다이어그램 작성을 도와드립니다. 어떤 프로세스를 다이어그램으로 만들고 싶으신가요?',
-        'architecture': '시스템 아키텍처 설계를 도와드립니다. 원하는 아키텍처 구조를 말씀해주세요.',
-        'information-architecture': '정보 구조도 작성을 도와드립니다. 사이트맵이나 정보 계층을 함께 설계해볼까요?',
-        'code-review': '코드 리뷰를 도와드립니다. 리뷰받고 싶은 코드를 공유해주세요.',
-        'team-members': '팀원 관리를 도와드립니다. 팀 구성이나 역할 분담에 대해 조언해드릴 수 있습니다.',
-        'project-info': '프로젝트 정보 관리를 도와드립니다. 수정하거나 개선할 부분을 말씀해주세요.',
-        'tech-stack': '기술 스택 선정을 도와드립니다. 프로젝트에 적합한 기술을 함께 고민해볼까요?'
-      };
-
-      return messages[itemId] || '안녕하세요! 이 섹션에서 무엇을 도와드릴까요?';
-    };
-
-    setChatMessages([
-      {
-        id: 1,
-        sender: 'ai',
-        text: getSectionMessage(selectedItem),
-        timestamp: new Date()
-      }
-    ]);
-  }, [selectedItem]);
-
-  // Schedule management state (AI 생성 시 채워짐)
-  const [schedules, setSchedules] = useState<Array<{
-    id: number;
-    title: string;
-    description: string;
-    startWeek: number;
-    duration: number;
-    color: string;
-    icon: string;
-    progress: number;
-    assignees: Array<{ id: number; name: string; avatar: string }>;
-    status: string;
-    notes: string;
-  }>>([]); // AI 생성 시 채워짐
-
-  // Tasks state (세부 작업 - scheduleId로 일정과 연결, AI 생성 시 채워짐)
-  const [tasks, setTasks] = useState<Array<{
-    id: number;
-    scheduleId: number;
-    title: string;
-    description: string;
-    completed: boolean;
-    priority: 'high' | 'medium' | 'low';
-  }>>([]); // AI 생성 시 채워짐
-
-  // 색상 매핑 (inline style용 hex 코드)
-  const getColorHex = (color: string) => {
-    const colorMap: Record<string, string> = {
-      blue: '#3b82f6',
-      purple: '#a855f7',
-      green: '#22c55e',
-      orange: '#f97316',
-      pink: '#ec4899',
-      cyan: '#06b6d4',
-      red: '#ef4444',
-      yellow: '#eab308',
-    };
-    return colorMap[color] || '#6b7280';
-  };
-
-  // 일정별 진행도 계산 함수
-  const calculateScheduleProgress = (scheduleId: number) => {
-    const scheduleTasks = tasks.filter(t => t.scheduleId === scheduleId);
-    if (scheduleTasks.length === 0) return 0;
-    const completedTasks = scheduleTasks.filter(t => t.completed).length;
-    return Math.round((completedTasks / scheduleTasks.length) * 100);
-  };
+  // Schedule management state
+  const [schedules, setSchedules] = useState([
+    {
+      id: 1,
+      title: '프로젝트 기획 및 설계',
+      description: '프로젝트의 전반적인 기획과 설계를 진행합니다.',
+      startWeek: 1,
+      duration: 3,
+      color: 'blue',
+      icon: 'Lightbulb',
+      progress: 100,
+      assignees: [
+        { id: 1, name: '김철수', avatar: '👨‍💻' },
+        { id: 2, name: '이영희', avatar: '👩‍💻' }
+      ],
+      status: 'completed',
+      notes: '기획 및 설계 완료. 모든 문서 작성 완료.',
+      tasks: [
+        { id: 1, title: '요구사항 분석', completed: true },
+        { id: 2, title: '기능 목록 작성', completed: true },
+        { id: 3, title: 'UI 디자인 초안 작성', completed: true }
+      ]
+    },
+    {
+      id: 2,
+      title: '기본 UI 및 기능 개발',
+      description: '기본적인 UI 컴포넌트와 핵심 기능을 개발합니다.',
+      startWeek: 3,
+      duration: 4,
+      color: 'purple',
+      icon: 'Code',
+      progress: 60,
+      assignees: [
+        { id: 1, name: '김철수', avatar: '👨‍💻' }
+      ],
+      status: 'in-progress',
+      notes: '현재 UI 컴포넌트 개발 중. 약 60% 진행.',
+      tasks: [
+        { id: 1, title: 'UI 컴포넌트 개발', completed: true },
+        { id: 2, title: '기능 개발 시작', completed: false },
+        { id: 3, title: '테스트 케이스 작성', completed: false }
+      ]
+    },
+    {
+      id: 3,
+      title: '핵심 기능 구현',
+      description: '백엔드 API와 핵심 비즈니스 로직을 구현합니다.',
+      startWeek: 6,
+      duration: 3,
+      color: 'green',
+      icon: 'Wrench',
+      progress: 30,
+      assignees: [
+        { id: 2, name: '이영희', avatar: '👩‍💻' }
+      ],
+      status: 'in-progress',
+      notes: 'API 설계 완료. 구현 시작.',
+      tasks: [
+        { id: 1, title: 'API 설계', completed: true },
+        { id: 2, title: '백엔드 개발 시작', completed: false },
+        { id: 3, title: '테스트 케이스 작성', completed: false }
+      ]
+    },
+    {
+      id: 4,
+      title: '테스트 및 배포',
+      description: '전체 시스템 테스트 및 프로덕션 배포를 진행합니다.',
+      startWeek: 8,
+      duration: 2,
+      color: 'orange',
+      icon: 'TestTube',
+      progress: 0,
+      assignees: [],
+      status: 'pending',
+      notes: ''
+    }
+  ]);
 
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
-
+  const [isAddScheduleModalOpen, setIsAddScheduleModalOpen] = useState(false);
+  
   // AI Assist Modal states
   const [aiAssistModal, setAiAssistModal] = useState<{
     isOpen: boolean;
@@ -266,6 +223,10 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     'information-architecture': '',
     'code-review': ''
   });
+  
+  // AI Generated Content for split view
+  const [aiGeneratedContent, setAiGeneratedContent] = useState<string>('');
+  const [showSplitView, setShowSplitView] = useState(false);
   
   // Project structure categories
   const categories = [
@@ -363,7 +324,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     }
   ];
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!inputMessage.trim()) return;
 
     const newMessage = {
@@ -377,60 +338,23 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     setInputMessage('');
     setIsAiTyping(true);
 
-    try {
-      // 현재 카테고리와 섹션 이름 찾기
-      const currentCategory = categories.find(c => c.id === selectedCategory);
-      const currentItem = currentCategory?.items.find(i => i.id === selectedItem);
-
-      // AI API 호출
-      const response = await fetch('http://localhost:5000/api/ai/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          context: {
-            projectName: project.name,
-            projectDescription: project.description,
-            projectCategory: project.category,
-            difficulty: project.difficulty,
-            techStack: project.techStack,
-            currentCategory: selectedCategory,
-            currentSection: selectedItem,
-            currentSectionLabel: currentItem?.label || selectedItem,
-            aiPlan: aiPlan,
-            schedules: schedules,
-            currentContent: documentContents[selectedItem] || ''
-          }
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        const aiResponse = {
-          id: chatMessages.length + 2,
-          sender: 'ai',
-          text: data.response,
-          timestamp: new Date()
-        };
-        setChatMessages(prev => [...prev, aiResponse]);
-      } else {
-        throw new Error(data.error || 'AI 응답 오류');
-      }
-    } catch (error) {
-      console.error('AI 채팅 오류:', error);
-      const errorMessage = {
+    // Simulate AI response
+    setTimeout(() => {
+      const generatedContent = `[AI가 생성한 내용]\n\n질문: "${inputMessage}"\n\n${inputMessage}에 대한 상세한 답변이 여기에 표시됩니다.\n\n• 주요 포인트 1\n• 주요 포인트 2\n• 주요 포인트 3\n\n이 내용은 프로젝트의 목적과 요구사항에 맞게 자동으로 생성되었습니다.`;
+      
+      const aiResponse = {
         id: chatMessages.length + 2,
         sender: 'ai',
-        text: '죄송합니다. AI 응답 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        text: '✅ 내용을 생성했습니다! 우측에서 결과를 확인하세요.',
         timestamp: new Date()
       };
-      setChatMessages(prev => [...prev, errorMessage]);
-    } finally {
+      setChatMessages(prev => [...prev, aiResponse]);
       setIsAiTyping(false);
-    }
+      
+      // Show split view with generated content
+      setAiGeneratedContent(generatedContent);
+      setShowSplitView(true);
+    }, 2000);
   };
 
   const renderContent = () => {
@@ -578,25 +502,14 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         );
 
       case 'schedule':
-        // 작업 완료 기반으로 진행도 계산하여 전달
-        const schedulesWithProgress = schedules.map(schedule => ({
-          ...schedule,
-          progress: calculateScheduleProgress(schedule.id),
-          status: (() => {
-            const progress = calculateScheduleProgress(schedule.id);
-            if (progress === 100) return 'completed';
-            if (progress > 0) return 'in-progress';
-            return 'pending';
-          })()
-        }));
-
         return (
-          <ScheduleTimeline
-            schedules={schedulesWithProgress}
+          <ScheduleTimeline 
+            schedules={schedules}
             onScheduleClick={(schedule) => {
               setSelectedSchedule(schedule);
               setIsScheduleModalOpen(true);
             }}
+            onAddSchedule={() => setIsAddScheduleModalOpen(true)}
           />
         );
 
@@ -607,138 +520,94 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
               <div>
                 <h3 className="text-lg text-gray-900 mb-2">작업 관리</h3>
                 <p className="text-sm text-gray-600">
-                  프로젝트 작업을 단계별로 관리하세요. 완료된 작업은 일정 진행도에 반영됩니다.
+                  일정별로 작업을 관리하세요.
                 </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-600">
-                  전체 진행률: <span className="font-medium text-blue-600">
-                    {tasks.length > 0 ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0}%
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    const newTask = {
-                      id: Date.now(),
-                      scheduleId: schedules[0]?.id || 0,
-                      title: '새 작업',
-                      description: '',
-                      completed: false,
-                      priority: 'medium' as const
-                    };
-                    setTasks([...tasks, newTask]);
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  작업 추가
-                </button>
               </div>
             </div>
 
             <div className="space-y-4">
               {schedules.map((schedule) => {
-                const scheduleTasks = tasks.filter(t => t.scheduleId === schedule.id);
-                const completedCount = scheduleTasks.filter(t => t.completed).length;
-                const progress = scheduleTasks.length > 0
-                  ? Math.round((completedCount / scheduleTasks.length) * 100)
-                  : 0;
-
+                const Icon = schedule.icon === 'Lightbulb' ? Lightbulb :
+                             schedule.icon === 'Code' ? Code :
+                             schedule.icon === 'Wrench' ? Wrench : TestTube;
+                
+                const scheduleTasks = schedule.tasks || [];
+                const completedTasks = scheduleTasks.filter((t: any) => t.completed).length;
+                
                 return (
                   <div key={schedule.id} className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getColorHex(schedule.color) }}></div>
-                        <h4 className="text-sm font-medium text-gray-900">{schedule.title}</h4>
-                        <span className="text-xs text-gray-500">({schedule.description})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full transition-all duration-300"
-                            style={{ width: `${progress}%`, backgroundColor: getColorHex(schedule.color) }}
-                          ></div>
+                        <div className={`w-10 h-10 bg-${schedule.color}-100 rounded-lg flex items-center justify-center`}>
+                          <Icon className={`w-5 h-5 text-${schedule.color}-600`} />
                         </div>
-                        <span className="text-xs text-gray-600 w-12">{progress}%</span>
+                        <div>
+                          <h4 className="text-sm text-gray-900">{schedule.title}</h4>
+                          <p className="text-xs text-gray-500">
+                            {scheduleTasks.length > 0 ? `${completedTasks}/${scheduleTasks.length} 완료` : '작업 없음'}
+                          </p>
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => {
+                          setSelectedSchedule(schedule);
+                          setIsScheduleModalOpen(true);
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-700">
+                        작업 관리
+                      </button>
                     </div>
-
+                    
                     <div className="space-y-2">
-                      {scheduleTasks.length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-4">이 일정에 작업이 없습니다.</p>
-                      ) : (
-                        scheduleTasks.map((task) => (
-                          <div
+                      {scheduleTasks.length > 0 ? (
+                        scheduleTasks.map((task: any) => (
+                          <div 
                             key={task.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-                              task.completed
-                                ? 'bg-green-50 border border-green-200'
-                                : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                            }`}
+                            className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
                             onClick={() => {
-                              setTasks(tasks.map(t =>
-                                t.id === task.id ? { ...t, completed: !t.completed } : t
-                              ));
+                              setSelectedSchedule(schedule);
+                              setIsScheduleModalOpen(true);
                             }}
                           >
-                            {task.completed ? (
-                              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                            ) : (
-                              <Circle className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <span className={`text-sm block truncate ${
-                                task.completed ? 'text-gray-500 line-through' : 'text-gray-900'
-                              }`}>
-                                {task.title}
-                              </span>
-                              {task.description && (
-                                <span className="text-xs text-gray-500 truncate block">{task.description}</span>
-                              )}
-                            </div>
-                            <span className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${
-                              task.priority === 'high'
-                                ? 'bg-red-100 text-red-700'
-                                : task.priority === 'medium'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-gray-100 text-gray-600'
+                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              task.completed
+                                ? 'bg-blue-600 border-blue-600'
+                                : 'border-gray-300'
                             }`}>
-                              {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '중간' : '낮음'}
+                              {task.completed && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                            </div>
+                            <span className={`text-sm flex-1 ${
+                              task.completed ? 'line-through text-gray-500' : 'text-gray-900'
+                            }`}>
+                              {task.title}
                             </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTasks(tasks.filter(t => t.id !== task.id));
-                              }}
-                              className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0"
-                            >
-                              <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                            </button>
                           </div>
                         ))
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">
+                          작업이 없습니다. 일정 상세에서 작업을 추가하세요.
+                        </p>
                       )}
                     </div>
-
-                    <button
-                      onClick={() => {
-                        const newTask = {
-                          id: Date.now(),
-                          scheduleId: schedule.id,
-                          title: '새 작업',
-                          description: '',
-                          completed: false,
-                          priority: 'medium' as const
-                        };
-                        setTasks([...tasks, newTask]);
-                      }}
-                      className="mt-3 w-full py-2 text-sm text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      이 일정에 작업 추가
-                    </button>
                   </div>
                 );
               })}
+              
+              {schedules.length === 0 && (
+                <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-500">일정을 먼저 추가하세요.</p>
+                  <button 
+                    onClick={() => {
+                      setSelectedCategory('tasks');
+                      setSelectedItem('schedule');
+                    }}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    일정 관리로 이동
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -855,7 +724,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                       <div>
                         <div className="text-sm text-gray-900 flex items-center gap-2">
                           <Globe className="w-4 h-4" />
-                          공개 프로젝트
+                          공개 로젝트
                         </div>
                         <p className="text-xs text-gray-500 ml-6">누구나 프로젝트를 볼 수 있습니</p>
                       </div>
@@ -893,7 +762,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
                         <Users className="w-4 h-4" />
                         팀원 모집 중
                       </div>
-                      <p className="text-xs text-gray-500 ml-6">다른 개발자들이 프로젝트에 참���할 수 있습니다</p>
+                      <p className="text-xs text-gray-500 ml-6">다른 개발자들이 프로젝트에 참할 수 있습니다</p>
                     </div>
                   </label>
                 </div>
@@ -1076,215 +945,55 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
     return (
       <AiProjectSetup
         projectName={project.name}
-        projectInfo={{
-          description: project.description,
-          category: project.category,
-          difficulty: project.difficulty,
-          techStack: project.techStack,
-          duration: project.duration,
-          teamSize: project.teamSize
-        }}
-        onComplete={async (data, mode) => {
+        onComplete={(data, mode) => {
           console.log('AI Setup completed:', { data, mode });
-
-          // 먼저 설정 화면 닫고 로딩 화면 표시
-          setShowAiSetup(false);
-          setIsGeneratingPlan(true);
-          setAiSetupData(data);
-          setAiSetupMode(mode);
-
-          try {
-            // AI API 호출하여 계획 생성
-            const response = await fetch('http://localhost:5000/api/ai/generate-plan', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                mode,
-                data,
-                projectInfo: {
-                  name: project.name,
-                  description: project.description,
-                  category: project.category,
-                  difficulty: project.difficulty,
-                  techStack: project.techStack,
-                  duration: project.duration,
-                  teamSize: project.teamSize,
-                  isPublic: project.isPublic
-                }
-              }),
+          
+          // Generate AI plan based on the mode and data
+          if (mode === 'guided') {
+            // For guided mode, create a structured plan
+            setAiPlan({
+              description: data.description,
+              targetUsers: data.targetUsers,
+              projectGoal: data.projectGoal,
+              languages: data.languages || [],
+              frameworks: data.frameworks || [],
+              coreFeatures: data.coreFeatures.filter((f: string) => f.trim() !== ''),
+              mode: 'guided'
             });
-
-            const result = await response.json();
-
-            if (result.success && result.plan) {
-              // API 응답으로 받은 계획 저장
-              setAiPlan({
-                ...result.plan,
-                mode,
-                inputData: data
-              });
-
-              // 일정과 작업을 분리해서 저장
-              if (result.plan.schedule && result.plan.schedule.length > 0) {
-                const baseScheduleId = Date.now();
-                const baseTaskId = Date.now() + 1000;
-
-                // 일정 생성 (대략적인 기간만)
-                let cumulativeWeek = 1;
-                const newSchedules = result.plan.schedule.map((s: any, index: number) => {
-                  const startWeek = cumulativeWeek;
-                  const duration = s.duration || 1;
-                  cumulativeWeek += duration;
-
-                  return {
-                    id: baseScheduleId + index,
-                    title: s.title || s.goal || `${s.phase || s.week}`,
-                    description: s.goal || `${s.phase || index + 1}주차 일정`,
-                    startWeek,
-                    duration,
-                    color: ['blue', 'purple', 'green', 'orange', 'pink', 'cyan'][index % 6],
-                    icon: 'Calendar',
-                    progress: 0,
-                    assignees: [],
-                    status: 'pending' as const,
-                    notes: ''
-                  };
-                });
-
-                // 세부 작업 생성 (각 일정에 연결)
-                const newTasks: Array<{
-                  id: number;
-                  scheduleId: number;
-                  title: string;
-                  description: string;
-                  completed: boolean;
-                  priority: 'high' | 'medium' | 'low';
-                }> = [];
-                let taskIdCounter = 0;
-
-                result.plan.schedule.forEach((s: any, scheduleIndex: number) => {
-                  if (s.tasks && Array.isArray(s.tasks)) {
-                    s.tasks.forEach((taskTitle: string) => {
-                      newTasks.push({
-                        id: baseTaskId + taskIdCounter,
-                        scheduleId: baseScheduleId + scheduleIndex,
-                        title: taskTitle,
-                        description: '',
-                        completed: false,
-                        priority: taskIdCounter < 3 ? 'high' : 'medium'
-                      });
-                      taskIdCounter++;
-                    });
-                  }
-                });
-
-                // roadmap에서도 작업 추출
-                if (result.plan.roadmap && Array.isArray(result.plan.roadmap)) {
-                  result.plan.roadmap.forEach((phase: any, phaseIndex: number) => {
-                    if (phase.tasks && Array.isArray(phase.tasks)) {
-                      phase.tasks.forEach((task: any) => {
-                        // 해당 phase에 맞는 schedule 찾기
-                        const matchingScheduleIndex = Math.min(phaseIndex, newSchedules.length - 1);
-                        newTasks.push({
-                          id: baseTaskId + taskIdCounter,
-                          scheduleId: baseScheduleId + matchingScheduleIndex,
-                          title: typeof task === 'string' ? task : task.title,
-                          description: typeof task === 'object' ? task.description || '' : '',
-                          completed: false,
-                          priority: task.priority === 'high' ? 'high' : 'medium'
-                        });
-                        taskIdCounter++;
-                      });
-                    }
-                  });
-                }
-
-                // 기존 데이터 대체 (중복 방지)
-                setSchedules(newSchedules);
-                setTasks(newTasks);
-              }
-            } else {
-              // API 실패 시 기본 데이터로 설정
-              if (mode === 'guided') {
-                setAiPlan({
-                  description: data.description,
-                  targetUsers: data.targetUsers,
-                  projectGoal: data.projectGoal,
-                  languages: data.languages || [],
-                  frameworks: data.frameworks || [],
-                  coreFeatures: data.coreFeatures.filter((f: string) => f.trim() !== ''),
-                  mode: 'guided'
-                });
-              } else {
-                setAiPlan({
-                  freeInput: data.freeInput,
-                  mode: 'scratch'
-                });
-              }
-            }
-          } catch (error) {
-            console.error('AI 계획 생성 오류:', error);
-            // 오류 시 기본 데이터로 설정
-            if (mode === 'guided') {
-              setAiPlan({
-                description: data.description,
-                targetUsers: data.targetUsers,
-                projectGoal: data.projectGoal,
-                languages: data.languages || [],
-                frameworks: data.frameworks || [],
-                coreFeatures: data.coreFeatures.filter((f: string) => f.trim() !== ''),
-                mode: 'guided'
-              });
-            } else {
-              setAiPlan({
-                freeInput: data.freeInput,
-                mode: 'scratch'
-              });
-            }
-          } finally {
-            // 로딩 종료 및 AI 계획 화면으로 이동
+            
+            // Set the initial view to AI plan
             setSelectedCategory('planning');
             setSelectedItem('ai-plan');
-            setIsGeneratingPlan(false);
+          } else if (mode === 'scratch') {
+            // For scratch mode, store the free input
+            setAiPlan({
+              freeInput: data.freeInput,
+              mode: 'scratch'
+            });
+            
+            // Set the initial view to AI plan
+            setSelectedCategory('planning');
+            setSelectedItem('ai-plan');
           }
+          
+          setAiSetupData(data);
+          setAiSetupMode(mode);
+          setShowAiSetup(false);
         }}
-        onBack={() => navigate(-1)}
+        onBack={() => window.location.hash = '#projects'}
       />
     );
   }
 
-  // AI 계획 생성 중 로딩 화면
-  if (isGeneratingPlan) {
-    return (
-      <div className="h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative mb-6">
-            <div className="w-20 h-20 border-4 border-blue-200 rounded-full animate-pulse"></div>
-            <Sparkles className="w-10 h-10 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-bounce" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">AI가 프로젝트 계획을 생성하고 있습니다</h2>
-          <p className="text-gray-600 mb-4">잠시만 기다려주세요...</p>
-          <div className="flex justify-center gap-1">
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => window.location.hash = '#projects'}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -1332,7 +1041,7 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
               </button>
               <div className="w-px h-6 bg-gray-300"></div>
               <button
-                onClick={() => navigate('/mypage')}
+                onClick={() => window.location.hash = '#mypage'}
                 className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center hover:shadow-lg transition-all"
                 title="마이페이지"
               >
@@ -1444,25 +1153,15 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto transition-all duration-300">
+        <div className={`flex-1 overflow-y-auto transition-all duration-300 ${showAiChat ? 'mr-0 lg:mr-96' : ''}`}>
           <div className="p-6 max-w-5xl mx-auto">
             {renderContent()}
           </div>
         </div>
 
         {/* AI Chat Sidebar */}
-        <div
-          className={`
-            ${showAiChat ? 'w-96' : 'w-0'}
-            bg-white border-l border-gray-200
-            flex flex-col
-            transition-all duration-300 ease-in-out
-            overflow-hidden
-            h-full
-          `}
-        >
-          {showAiChat && (
-            <div className="flex flex-col h-full">
+        {showAiChat && (
+          <div className="fixed top-0 right-0 w-full lg:w-96 h-screen bg-white border-l border-gray-200 flex flex-col shadow-2xl z-30">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-500 to-purple-500">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-white" />
@@ -1476,83 +1175,41 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {chatMessages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[85%] ${
+                  <div className={`max-w-[80%] ${ 
                     message.sender === 'user'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
-                      : 'bg-white text-gray-900 border border-gray-200'
-                  } rounded-2xl px-4 py-3 shadow-sm`}>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.text}</p>
-                    {message.sender === 'ai' && message.id !== 1 && documentContents.hasOwnProperty(selectedItem) && (
-                      <div className="mt-3 flex gap-2 pt-2 border-t border-gray-200">
-                        <button
-                          onClick={() => {
-                            // 덮어쓰기: Replace current document content
-                            if (selectedItem && documentContents.hasOwnProperty(selectedItem)) {
-                              setDocumentContents({
-                                ...documentContents,
-                                [selectedItem]: message.text
-                              });
-                              const successMsg = {
-                                id: chatMessages.length + 1,
-                                sender: 'ai',
-                                text: '✅ 내용을 덮어썼습니다!',
-                                timestamp: new Date()
-                              };
-                              setChatMessages(prev => [...prev, successMsg]);
-                            }
-                          }}
-                          className="
-                            flex-1 px-3 py-2
-                            bg-gradient-to-r from-purple-500 to-pink-500
-                            hover:from-purple-600 hover:to-pink-600
-                            text-white text-xs font-medium rounded-lg
-                            inline-flex items-center justify-center gap-1.5
-                            transition-all duration-200 shadow-sm hover:shadow
-                          "
-                        >
-                          <Replace className="w-3.5 h-3.5" />
-                          덮어쓰기
-                        </button>
-                        <button
-                          onClick={() => {
-                            // 추가하기: Append to current document content
-                            if (selectedItem && documentContents.hasOwnProperty(selectedItem)) {
-                              const currentContent = documentContents[selectedItem];
-                              const newContent = currentContent
-                                ? `${currentContent}\n\n${message.text}`
-                                : message.text;
-                              setDocumentContents({
-                                ...documentContents,
-                                [selectedItem]: newContent
-                              });
-                              const successMsg = {
-                                id: chatMessages.length + 1,
-                                sender: 'ai',
-                                text: '✅ 내용을 추가했습니다!',
-                                timestamp: new Date()
-                              };
-                              setChatMessages(prev => [...prev, successMsg]);
-                            }
-                          }}
-                          className="
-                            flex-1 px-3 py-2
-                            bg-gradient-to-r from-blue-500 to-cyan-500
-                            hover:from-blue-600 hover:to-cyan-600
-                            text-white text-xs font-medium rounded-lg
-                            inline-flex items-center justify-center gap-1.5
-                            transition-all duration-200 shadow-sm hover:shadow
-                          "
-                        >
-                          <FilePlus className="w-3.5 h-3.5" />
-                          추가하기
-                        </button>
-                      </div>
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-900'
+                  } rounded-2xl px-4 py-2`}>
+                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    {message.sender === 'ai' && message.id !== 1 && (
+                      <button
+                        onClick={() => {
+                          // Apply AI's message to current document
+                          if (selectedItem && documentContents.hasOwnProperty(selectedItem)) {
+                            setDocumentContents({
+                              ...documentContents,
+                              [selectedItem]: message.text
+                            });
+                            // Show success feedback
+                            const successMsg = {
+                              id: chatMessages.length + 1,
+                              sender: 'ai',
+                              text: '✅ 내용이 적용되었습니다!',
+                              timestamp: new Date()
+                            };
+                            setChatMessages(prev => [...prev, successMsg]);
+                          }
+                        }}
+                        className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        현재 섹션에 적용
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1566,67 +1223,36 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
               )}
             </div>
 
-            <div className="border-t border-gray-200 bg-white p-4">
-              <div className="flex gap-3">
+            <div className="border-t border-gray-200 p-4 bg-white">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)"
-                  className="
-                    flex-1 px-4 py-3
-                    border border-gray-300 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    text-sm placeholder-gray-400
-                    transition-all duration-200
-                  "
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="AI에게 질문하세요..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!inputMessage.trim()}
-                  className="
-                    px-5 py-3
-                    bg-gradient-to-r from-blue-600 to-blue-500
-                    hover:from-blue-700 hover:to-blue-600
-                    text-white rounded-lg
-                    transition-all duration-200
-                    disabled:from-gray-300 disabled:to-gray-300
-                    disabled:cursor-not-allowed
-                    disabled:hover:shadow-none
-                    shadow-sm hover:shadow
-                    flex items-center justify-center
-                  "
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Floating AI Button */}
       {!showAiChat && (
         <button
           onClick={() => setShowAiChat(true)}
-          className="
-            fixed bottom-6 right-6
-            w-14 h-14 md:w-16 md:h-16
-            bg-gradient-to-r from-blue-600 to-purple-600
-            hover:from-blue-700 hover:to-purple-700
-            text-white rounded-full
-            shadow-lg hover:shadow-2xl
-            transition-all duration-300
-            flex items-center justify-center
-            z-40
-            hover:scale-110
-            active:scale-95
-          "
-          aria-label="AI 어시스턴트 열기"
+          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-10"
         >
-          <Sparkles className="w-6 h-6 md:w-7 md:h-7" />
+          <Sparkles className="w-6 h-6" />
         </button>
       )}
 
@@ -1662,6 +1288,36 @@ export default function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
             [aiAssistModal.itemId]: content
           });
         }}
+      />
+
+      {/* AI Split View */}
+      {showSplitView && (
+        <AiSplitView
+          title={categories.find(c => c.id === selectedCategory)?.items.find(i => i.id === selectedItem)?.label || '내용'}
+          userContent={documentContents[selectedItem] || ''}
+          aiContent={aiGeneratedContent}
+          onApply={() => {
+            setDocumentContents({
+              ...documentContents,
+              [selectedItem]: aiGeneratedContent
+            });
+          }}
+          onClose={() => {
+            setShowSplitView(false);
+            setAiGeneratedContent('');
+          }}
+        />
+      )}
+
+      {/* Add Schedule Modal */}
+      <AddScheduleModal
+        isOpen={isAddScheduleModalOpen}
+        onClose={() => setIsAddScheduleModalOpen(false)}
+        onAdd={(newSchedule) => {
+          setSchedules([...schedules, newSchedule]);
+          setIsAddScheduleModalOpen(false);
+        }}
+        teamMembers={project.teamMembers}
       />
     </div>
   );
